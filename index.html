@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圖資倉儲管理系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  --bg:#EDF1F6; --surface:#FFFFFF; --line:#D7DEE8; --line-soft:#E7ECF3;
+  --ink-900:#0D2B45; --ink-800:#123A5C; --ink-700:#1D4E7E; --ink-500:#39699C; --ink-100:#E4EDF6;
+  --text:#1B2836; --text-2:#5B6C80; --text-3:#8B99AB;
+  --ok:#2E7D5B; --warn:#B7791F; --danger:#B4432F;
+  --chip:#E6EDF5;
+  --r:10px; --shadow:0 1px 2px rgba(13,43,69,.06),0 8px 24px rgba(13,43,69,.08);
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --grid-line:rgba(255,255,255,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif;
+  background:var(--bg); color:var(--text); font-size:14px; line-height:1.6;
+  display:flex; min-height:100vh;
+}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14px;color:var(--text)}
+::placeholder{color:var(--text-3)}
+
+/* ── 登入頁 ─────────────────────────── */
+.login-wrap{
+  position:fixed;inset:0;z-index:300;display:flex;
+  background:linear-gradient(118deg,var(--ink-900) 0%,var(--ink-700) 62%,#2E6394 100%);
+}
+.login-wrap::before{
+  content:"";position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);
+  background-size:30px 30px;
+}
+.login-cover{flex:1;position:relative;color:#DDEAF6;display:flex;flex-direction:column;justify-content:center;padding:8vw;min-width:0}
+.login-cover .big-logo{width:96px;height:96px;border-radius:50%;box-shadow:0 12px 40px rgba(0,0,0,.35);margin-bottom:28px;background:#fff;object-fit:cover}
+.login-cover h1{font-size:clamp(28px,3.4vw,44px);font-weight:900;color:#FFF;letter-spacing:.04em;line-height:1.3}
+.login-cover .tag{font-family:var(--mono);letter-spacing:.28em;font-size:13px;color:#9FBFDD;margin-bottom:14px}
+.login-cover p{margin-top:16px;max-width:460px;color:#B9CFE4;font-size:15px}
+.login-cover .feat{display:flex;gap:22px;margin-top:34px;flex-wrap:wrap}
+.login-cover .feat div{font-size:13px;color:#CFE0F0}
+.login-cover .feat b{display:block;font-family:var(--mono);font-size:20px;color:#FFF}
+.login-panel{
+  width:430px;max-width:100%;background:var(--surface);position:relative;
+  display:flex;flex-direction:column;justify-content:center;padding:48px 44px;box-shadow:-20px 0 60px rgba(0,0,0,.3);
+}
+.login-panel h2{font-size:22px;font-weight:900;color:var(--ink-900)}
+.login-panel .sub2{color:var(--text-3);font-size:13px;margin:4px 0 26px}
+.captcha-row{display:flex;gap:10px;align-items:center}
+.captcha-row canvas{border:1px solid var(--line);border-radius:8px;cursor:pointer;flex-shrink:0}
+.login-err{color:var(--danger);font-size:13px;font-weight:700;min-height:20px;margin:6px 0 4px}
+.login-panel .btn.primary{width:100%;justify-content:center;padding:12px;font-size:15px;margin-top:6px}
+.login-foot{margin-top:26px;font-size:11.5px;color:var(--text-3);font-family:var(--mono);text-align:center}
+@media(max-width:840px){.login-cover{display:none}.login-panel{width:100%}}
+
+/* ── 側邊欄 ─────────────────────────── */
+.sidebar{
+  width:224px; flex-shrink:0; background:var(--ink-900); color:#C9D8E6;
+  background-image:
+    linear-gradient(var(--grid-line) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+  background-size:24px 24px;
+  display:flex; flex-direction:column; position:sticky; top:0; height:100vh;
+}
+.brand{padding:20px;border-bottom:1px solid rgba(255,255,255,.1)}
+.brand-mark{display:flex;align-items:center;gap:11px}
+.brand-mark img{width:42px;height:42px;border-radius:50%;background:#fff;object-fit:cover;flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.brand h1{font-size:15.5px;font-weight:900;color:#FFF;letter-spacing:.05em;line-height:1.4}
+.nav{padding:12px;flex:1;overflow-y:auto}
+.nav-label{font-size:11px;color:#6D8298;letter-spacing:.18em;padding:10px 10px 6px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:9px 12px;border-radius:8px;border:none;background:transparent;color:#C9D8E6;
+  font-size:14px;font-weight:500;margin-bottom:2px;
+}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;opacity:.85}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#FFF}
+.nav-item.active{background:var(--ink-700);color:#FFF;font-weight:700}
+.side-foot{padding:12px 16px;border-top:1px solid rgba(255,255,255,.1);font-size:11px;color:#6D8298;font-family:var(--mono)}
+.side-user{display:flex;align-items:center;gap:8px;margin-bottom:8px;color:#B9CFE4;font-family:'Noto Sans TC';font-size:12.5px}
+.side-user .avatar{width:26px;height:26px;border-radius:50%;background:var(--ink-700);display:grid;place-items:center;color:#FFF;font-weight:700;font-size:12px}
+.side-user button{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.25);color:#B9CFE4;border-radius:6px;font-size:11px;padding:2px 8px}
+.side-user button:hover{border-color:#FFF;color:#FFF}
+.mode-pill{display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700}
+.mode-pill.demo{background:rgba(183,121,31,.25);color:#F0C377}
+.mode-pill.live{background:rgba(46,125,91,.25);color:#8FD8B6}
+.mode-pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* ── 主區 ─────────────────────────── */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--line);
+  padding:14px 28px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:30;
+}
+.topbar h2{font-size:17px;font-weight:900;color:var(--ink-900)}
+.topbar .crumb{font-size:12px;color:var(--text-3);font-family:var(--mono)}
+.topbar-spacer{flex:1}
+.content{padding:26px 28px 60px;max-width:1440px;width:100%;margin:0 auto}
+.page{display:none}
+.page.show{display:block;animation:fadein .18s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:8px;
+  font-size:13.5px;font-weight:700;border:1px solid var(--line);background:var(--surface);color:var(--text);
+}
+.btn:hover{border-color:var(--ink-500);color:var(--ink-700)}
+.btn.primary{background:var(--ink-700);border-color:var(--ink-700);color:#FFF}
+.btn.primary:hover{background:var(--ink-800)}
+.btn.danger{color:var(--danger);border-color:#E3C4BC}
+.btn.danger:hover{background:#FBF1EF}
+.btn.sm{padding:5px 11px;font-size:12.5px;border-radius:7px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--text-2)}
+.btn.ghost:hover{background:var(--ink-100);color:var(--ink-700)}
+.btn svg{width:15px;height:15px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn:focus-visible,.nav-item:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--ink-500);outline-offset:1px}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card-h{padding:14px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card-h h3{font-size:14px;font-weight:900;color:var(--ink-900)}
+.card-h .hint{font-size:12px;color:var(--text-3)}
+.card-b{padding:18px}
+
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--text-2);margin-bottom:5px}
+.field label .req{color:var(--danger)}
+.input,select.input,textarea.input{
+  width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#FFF;
+}
+.input:focus{border-color:var(--ink-500)}
+textarea.input{resize:vertical;min-height:70px}
+.field .help{font-size:11.5px;color:var(--text-3);margin-top:4px}
+
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--chip);color:var(--ink-700)}
+.chip .cdot{width:7px;height:7px;border-radius:50%}
+.chip.click{cursor:pointer;border:1px solid transparent}
+.chip.click:hover{border-color:var(--ink-500)}
+.chip.on{background:var(--ink-700);color:#FFF}
+.tagchip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:6px;font-size:12px;font-weight:700;background:#FBF3E4;color:#8A5A12;border:1px solid #EDD9B0}
+.tagchip .rm{cursor:pointer;opacity:.6;font-weight:900}
+.tagchip .rm:hover{opacity:1}
+.tag-input{border:1px dashed var(--line);border-radius:6px;padding:2px 9px;font-size:12px;width:110px;background:#FFF}
+
+.table{width:100%;border-collapse:collapse}
+.table th{
+  text-align:left;font-size:12px;color:var(--text-3);font-weight:700;letter-spacing:.04em;
+  padding:9px 14px;border-bottom:1px solid var(--line);background:#F7F9FC;white-space:nowrap;
+}
+.table td{padding:10px 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.table tbody tr{cursor:pointer}
+.table tbody tr:hover{background:#F3F7FB}
+.mono{font-family:var(--mono);font-size:12.5px}
+.muted{color:var(--text-3)}
+.nowrap{white-space:nowrap}
+
+.ficon{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:600;color:#FFF;flex-shrink:0;letter-spacing:.02em}
+.fname{display:flex;align-items:center;gap:11px;min-width:0}
+.fname .nm{font-weight:700;color:var(--ink-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:320px}
+.fname .meta{font-size:11.5px;color:var(--text-3);font-family:var(--mono)}
+
+/* 首頁 */
+.hero{
+  border-radius:14px;padding:30px 32px 34px;color:#FFF;margin-bottom:22px;position:relative;overflow:hidden;
+  background:linear-gradient(120deg,var(--ink-900),var(--ink-700));
+}
+.hero::before{
+  content:"";position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);
+  background-size:28px 28px;pointer-events:none;
+}
+.hero>*{position:relative}
+.hero .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:#9FBFDD;margin-bottom:8px}
+.hero h2{font-size:24px;font-weight:900;margin-bottom:18px}
+.searchbar{display:flex;gap:10px;max-width:720px}
+.searchbar .box{flex:1;display:flex;align-items:center;gap:10px;background:#FFF;border-radius:10px;padding:0 14px}
+.searchbar .box svg{width:18px;height:18px;color:var(--text-3);flex-shrink:0}
+.searchbar input{flex:1;border:none;outline:none;padding:13px 0;font-size:15px;background:transparent}
+.searchbar .btn{padding:0 22px;border-radius:10px;font-size:15px}
+.hero .quick{margin-top:12px;font-size:12.5px;color:#AFC9E2;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.hero .quick label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px;margin-bottom:22px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
+.stat .k{font-size:12.5px;color:var(--text-2);font-weight:700;display:flex;align-items:center;gap:7px}
+.stat .k svg{width:15px;height:15px;color:var(--ink-500)}
+.stat .v{font-family:var(--mono);font-size:26px;font-weight:600;color:var(--ink-900);margin-top:4px}
+.stat .d{font-size:11.5px;color:var(--text-3);margin-top:2px}
+
+.chart-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-bottom:22px}
+.chart-wrap{position:relative;height:260px}
+@media(max-width:980px){.chart-grid{grid-template-columns:1fr}}
+
+/* 檔案總管 / 搜尋 */
+.explorer{display:grid;grid-template-columns:250px 1fr;gap:16px;align-items:start}
+@media(max-width:980px){.explorer{grid-template-columns:1fr}}
+.tree{padding:8px}
+.tree-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:13.5px;font-weight:500;color:var(--text)}
+.tree-item:hover{background:var(--ink-100)}
+.tree-item.active{background:var(--ink-700);color:#FFF;font-weight:700}
+.tree-item .cnt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.tree-item.active .cnt{color:#B9D2E9}
+.tree-item svg{width:15px;height:15px;flex-shrink:0;color:var(--warn)}
+.tree-item.active svg{color:#F0C377}
+.tree-kids{margin-left:16px;border-left:1px dashed var(--line);padding-left:6px}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line-soft)}
+.toolbar .sep{width:1px;height:20px;background:var(--line)}
+.count-note{font-size:12.5px;color:var(--text-3);font-family:var(--mono)}
+
+.search-layout{display:grid;grid-template-columns:270px 1fr;gap:16px;align-items:start}
+@media(max-width:980px){.search-layout{grid-template-columns:1fr}}
+.facet h4{font-size:12px;color:var(--text-3);letter-spacing:.08em;font-weight:700;margin:14px 0 8px}
+.facet .chips{display:flex;flex-wrap:wrap;gap:6px}
+.result{padding:14px 18px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.result:hover{background:#F3F7FB}
+.result .snippet{font-size:12.5px;color:var(--text-2);margin-top:6px;line-height:1.7}
+.result .snippet mark,.nm mark{background:#FCE9C8;color:#7A4E0D;padding:0 2px;border-radius:3px;font-weight:700}
+.result .rmeta{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:11.5px;color:var(--text-3);font-family:var(--mono)}
+
+/* 地圖 */
+.map-layout{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}
+@media(max-width:980px){.map-layout{grid-template-columns:1fr}}
+#twMap{height:calc(100vh - 210px);min-height:480px;border-radius:var(--r);z-index:1}
+.map-file{padding:10px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.map-file:hover{background:#F3F7FB}
+.map-file .addr{font-size:11.5px;color:var(--ink-500);margin-top:2px;display:flex;align-items:center;gap:4px}
+.leaflet-popup-content{font-family:'Noto Sans TC',sans-serif;font-size:13px}
+.pop-file{padding:5px 0;border-bottom:1px dashed var(--line-soft);cursor:pointer;font-weight:700;color:var(--ink-700)}
+.pop-file:last-child{border-bottom:none}
+.pop-file:hover{text-decoration:underline}
+
+/* AI 助理 */
+.ai-layout{display:grid;grid-template-columns:290px 1fr;gap:16px;align-items:start;height:calc(100vh - 190px);min-height:520px}
+@media(max-width:980px){.ai-layout{grid-template-columns:1fr;height:auto}}
+.ai-chat{display:flex;flex-direction:column;height:100%;min-height:520px}
+.ai-msgs{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.msg{max-width:78%;padding:11px 15px;border-radius:14px;font-size:13.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word}
+.msg.user{align-self:flex-end;background:var(--ink-700);color:#FFF;border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:#F2F6FA;border:1px solid var(--line-soft);border-bottom-left-radius:4px}
+.msg.ai .src{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:11.5px;color:var(--text-3)}
+.msg .usage{font-family:var(--mono);font-size:10.5px;color:var(--text-3);margin-top:6px}
+.ai-input{display:flex;gap:8px;padding:14px;border-top:1px solid var(--line-soft)}
+.ai-input textarea{flex:1;min-height:44px;max-height:120px}
+.ai-hello{text-align:center;color:var(--text-3);padding:36px 20px}
+.ai-hello .big{font-size:16px;font-weight:900;color:var(--ink-700);margin-bottom:6px}
+.provider-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:99px;background:var(--ink-100);color:var(--ink-700);font-weight:700;font-size:12px}
+
+/* 管理頁 */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
+.tab{padding:10px 16px;border:none;background:transparent;font-size:14px;font-weight:700;color:var(--text-2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--ink-700);border-color:var(--ink-700)}
+.admin-pane{display:none}
+.admin-pane.show{display:block}
+.provider-help{background:#F7F9FC;border:1px solid var(--line-soft);border-radius:8px;padding:12px 14px;font-size:12.5px;margin-bottom:14px;line-height:1.8}
+.provider-help b{color:var(--ink-700)}
+
+/* 抽屜與彈窗 */
+.drawer-mask,.modal-mask{position:fixed;inset:0;background:rgba(13,43,69,.42);z-index:80;display:none}
+.drawer-mask.show,.modal-mask.show{display:block}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;width:520px;max-width:94vw;background:var(--surface);
+  z-index:90;box-shadow:-12px 0 40px rgba(13,43,69,.2);display:none;flex-direction:column;
+}
+.drawer.show{display:flex;animation:slidein .2s ease}
+@keyframes slidein{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+.drawer-h{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.drawer-b{flex:1;overflow-y:auto;padding:20px}
+.drawer-f{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:8px 14px;font-size:13.5px}
+.kv dt{color:var(--text-3);font-weight:700;font-size:12.5px;padding-top:1px}
+.kv dd{color:var(--text)}
+.section-t{font-size:12px;color:var(--text-3);letter-spacing:.1em;font-weight:700;margin:20px 0 10px;display:flex;align-items:center;gap:8px}
+.section-t::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+.rel-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line-soft);border-radius:8px;margin-bottom:8px;cursor:pointer}
+.rel-item:hover{border-color:var(--ink-500)}
+.rel-item .tag{font-size:11px;font-weight:700;color:var(--ink-700);background:var(--ink-100);padding:1px 8px;border-radius:99px;white-space:nowrap}
+
+.modal{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:95;
+  background:var(--surface);border-radius:14px;box-shadow:0 24px 80px rgba(13,43,69,.35);
+  width:640px;max-width:94vw;max-height:90vh;display:none;flex-direction:column;
+}
+.modal.show{display:flex;animation:fadein .16s ease}
+.modal.wide{width:960px}
+.modal-h{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center}
+.modal-h h3{font-size:15px;font-weight:900;color:var(--ink-900);flex:1}
+.modal-b{padding:20px 22px;overflow-y:auto}
+.modal-f{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.x{border:none;background:transparent;font-size:20px;color:var(--text-3);padding:2px 8px;border-radius:6px}
+.x:hover{background:var(--ink-100);color:var(--ink-700)}
+
+.dropzone{border:2px dashed var(--line);border-radius:12px;padding:30px;text-align:center;color:var(--text-2);background:#FAFCFE;cursor:pointer;margin-bottom:14px}
+.dropzone.on{border-color:var(--ink-500);background:var(--ink-100)}
+.dropzone .big{font-size:15px;font-weight:700;color:var(--ink-700)}
+.upl-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:8px;margin-bottom:6px}
+.upl-item input{flex:1}
+.preview-frame{width:100%;height:70vh;border:none;border-radius:0 0 14px 14px;background:#F1F4F8}
+.cat-picker{display:flex;flex-wrap:wrap;gap:6px}
+.empty{padding:44px 20px;text-align:center;color:var(--text-3)}
+.empty .t{font-weight:700;color:var(--text-2);margin-bottom:4px;font-size:14.5px}
+#toasts{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:400;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:var(--ink-900);color:#FFF;padding:10px 20px;border-radius:99px;font-size:13.5px;font-weight:700;box-shadow:var(--shadow);animation:fadein .2s ease}
+.toast.err{background:var(--danger)}
+@media(max-width:840px){.sidebar{display:none}.content{padding:18px 14px 60px}.topbar{padding:12px 14px}}
+</style>
+</head>
+<body>
+
+<!-- ══════════ 登入頁 ══════════ -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-cover">
+    <img class="big-logo" src="data:image/png;base64,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" alt="系統圖示">
+    <div class="tag">DOCUMENT WAREHOUSE SYSTEM</div>
+    <h1>圖資倉儲管理系統</h1>
+    <p>集中管理工程圖說與文件:PDF 內文全文搜尋、台灣地圖圖資定位、AI 智慧問答,檔案存 Google Drive、資料存 Google Sheets。</p>
+    <div class="feat">
+      <div><b>OCR</b>PDF 內文搜尋</div>
+      <div><b>MAP</b>地圖圖資定位</div>
+      <div><b>AI</b>指定資料夾問答</div>
+      <div><b>∞</b>自訂欄位與標籤</div>
+    </div>
+  </div>
+  <div class="login-panel">
+    <h2>登入系統</h2>
+    <div class="sub2">請輸入帳號密碼與驗證碼</div>
+    <div class="field"><label>帳號</label><input class="input" id="loginUser" autocomplete="username" onkeydown="if(event.key==='Enter')$('loginPwd').focus()"></div>
+    <div class="field"><label>密碼</label><input class="input" type="password" id="loginPwd" autocomplete="current-password" onkeydown="if(event.key==='Enter')$('loginCap').focus()"></div>
+    <div class="field"><label>驗證碼(點圖片可更換)</label>
+      <div class="captcha-row">
+        <canvas id="capCanvas" width="120" height="42" title="點擊更換驗證碼"></canvas>
+        <input class="input" id="loginCap" placeholder="輸入圖中文字" maxlength="4" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+    </div>
+    <div class="login-err" id="loginErr"></div>
+    <button class="btn primary" onclick="doLogin()">登入</button>
+    <div class="login-foot">v2.0.0 · 圖資倉儲管理系統</div>
+  </div>
+</div>
+
+<!-- ══════════ 側邊欄 ══════════ -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-mark">
+      <img src="data:image/png;base64,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" alt="logo">
+      <h1>圖資倉儲<br>管理系統</h1>
+    </div>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">功能選單</div>
+    <button class="nav-item active" data-page="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      首頁總覽
+    </button>
+    <button class="nav-item" data-page="explorer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      檔案總管
+    </button>
+    <button class="nav-item" data-page="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      進階搜尋
+    </button>
+    <button class="nav-item" data-page="map">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+      圖資地圖
+    </button>
+    <button class="nav-item" data-page="ai">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/><path d="M9 11h.01M13 11h.01M17 11h.01" stroke-width="2.6"/></svg>
+      AI 助理
+    </button>
+    <div class="nav-label">系統</div>
+    <button class="nav-item" data-page="admin">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      系統管理
+    </button>
+  </nav>
+  <div class="side-foot">
+    <div class="side-user"><span class="avatar" id="userAvatar">管</span><span id="userName">—</span><button onclick="doLogout()">登出</button></div>
+    v2.0.0
+    <div><span id="modePill" class="mode-pill demo"><span class="dot"></span>示範資料模式</span></div>
+  </div>
+</aside>
+
+<!-- ══════════ 主內容 ══════════ -->
+<div class="main">
+  <header class="topbar">
+    <div>
+      <h2 id="pageTitle">首頁總覽</h2>
+      <div class="crumb" id="pageCrumb">DASHBOARD</div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <button class="btn primary" onclick="openUpload()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      上傳檔案
+    </button>
+  </header>
+
+  <div class="content">
+
+    <!-- ── 首頁 ── -->
+    <section class="page show" id="page-dashboard">
+      <div class="hero">
+        <div class="eyebrow">DOCUMENT WAREHOUSE</div>
+        <h2>要找哪一份圖資?</h2>
+        <div class="searchbar">
+          <div class="box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="heroSearch" placeholder="可輸入多個關鍵字,以空格分隔(例:排水 竣工)…" onkeydown="if(event.key==='Enter')heroGo()">
+          </div>
+          <button class="btn primary" onclick="heroGo()">搜尋</button>
+        </div>
+        <div class="quick">
+          <label><input type="checkbox" id="heroContent" checked> 同時搜尋 PDF 內文</label>
+          <span>快速範例:</span>
+          <a href="#" style="color:#CFE3F5" onclick="quickSearch('114-工-002');return false">114-工-002</a>
+          <a href="#" style="color:#CFE3F5" onclick="quickSearch('排水 竣工');return false">排水 竣工</a>
+          <a href="#" style="color:#CFE3F5" onclick="quickSearch('橋梁 補強');return false">橋梁 補強</a>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="statGrid"></div>
+
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-h"><h3>各案件檔案數量</h3><span class="hint">依「案件編號」欄位統計・前 10 名</span></div>
+          <div class="card-b"><div class="chart-wrap"><canvas id="chCase"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>檔案類型分布</h3></div>
+          <div class="card-b"><div class="chart-wrap"><canvas id="chType"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>各分類檔案數</h3></div>
+          <div class="card-b"><div class="chart-wrap"><canvas id="chCat"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>AI Token 用量(近 6 個月)</h3><span class="hint" id="aiUsageHint"></span></div>
+          <div class="card-b"><div class="chart-wrap"><canvas id="chAi"></canvas></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>最近上傳</h3><span class="hint">最新 8 筆</span>
+          <div style="margin-left:auto"><button class="btn sm ghost" onclick="go('explorer')">前往檔案總管 →</button></div>
+        </div>
+        <div style="overflow-x:auto"><table class="table" id="recentTable"></table></div>
+      </div>
+    </section>
+
+    <!-- ── 檔案總管 ── -->
+    <section class="page" id="page-explorer">
+      <div class="explorer">
+        <div class="card">
+          <div class="card-h"><h3>資料夾</h3>
+            <div style="margin-left:auto"><button class="btn sm ghost" title="管理資料夾" onclick="go('admin');switchTab('folders')">管理</button></div>
+          </div>
+          <div class="tree" id="folderTree"></div>
+        </div>
+        <div class="card">
+          <div class="toolbar">
+            <select class="input" style="width:150px" id="expCat" onchange="renderExplorer()"></select>
+            <select class="input" style="width:120px" id="expType" onchange="renderExplorer()"></select>
+            <select class="input" style="width:150px" id="expSort" onchange="renderExplorer()">
+              <option value="desc">上傳時間 新→舊</option>
+              <option value="asc">上傳時間 舊→新</option>
+              <option value="name">檔名 A→Z</option>
+            </select>
+            <div class="sep"></div>
+            <input class="input" style="width:200px;flex:1;min-width:140px" id="expKw" placeholder="快速過濾(可空格分隔多關鍵字)…" oninput="renderExplorer()">
+            <span class="count-note" id="expCount"></span>
+          </div>
+          <div style="overflow-x:auto"><table class="table" id="fileTable"></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 進階搜尋 ── -->
+    <section class="page" id="page-search">
+      <div class="search-layout">
+        <div class="card">
+          <div class="card-h"><h3>搜尋條件</h3></div>
+          <div class="card-b">
+            <div class="field"><label>關鍵字(空格分隔=同時符合)</label>
+              <input class="input" id="sKw" placeholder="例:排水 竣工" onkeydown="if(event.key==='Enter')doSearch()">
+              <div class="help">輸入「排水 竣工」會找出同時包含兩組關鍵字的檔案</div>
+            </div>
+            <div class="field"><label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+              <input type="checkbox" id="sContent" checked> 搜尋 PDF 內文文字</label>
+              <div class="help">未勾選時僅比對檔名、欄位與標籤</div>
+            </div>
+            <div class="field"><label>資料夾範圍</label><select class="input" id="sFolder"></select></div>
+            <div class="field"><label>分類</label><div class="cat-picker" id="sCats"></div></div>
+            <div class="field"><label>上傳時間</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="date" class="input" id="sFrom"><span class="muted">~</span><input type="date" class="input" id="sTo">
+              </div>
+            </div>
+            <button class="btn primary" style="width:100%;justify-content:center" onclick="doSearch()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              執行搜尋
+            </button>
+            <div class="facet" id="facetBox" style="display:none">
+              <h4>結果內再篩選</h4>
+              <div id="facets"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>搜尋結果</h3><span class="hint" id="sCount"></span>
+            <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+              <span class="muted" style="font-size:12px">排序</span>
+              <select class="input" style="width:150px;padding:5px 10px" id="sSort" onchange="renderResults()">
+                <option value="rel">相關性</option>
+                <option value="desc">上傳時間 新→舊</option>
+                <option value="asc">上傳時間 舊→新</option>
+              </select>
+            </div>
+          </div>
+          <div id="resultsBox"><div class="empty"><div class="t">尚未搜尋</div>輸入關鍵字並按「執行搜尋」,可用空格分隔多組關鍵字並搜尋 PDF 內文。</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 圖資地圖 ── -->
+    <section class="page" id="page-map">
+      <div class="map-layout">
+        <div class="card">
+          <div class="card-h"><h3>有定位的圖資</h3><span class="hint" id="mapCount"></span></div>
+          <div class="toolbar" style="padding:10px 14px">
+            <select class="input" style="flex:1" id="mapFolder" onchange="renderMap()"></select>
+          </div>
+          <div id="mapList" style="max-height:calc(100vh - 330px);overflow-y:auto"></div>
+        </div>
+        <div class="card" style="padding:10px">
+          <div id="twMap"></div>
+          <div class="help" style="padding:8px 6px 2px">上傳或編輯檔案時填寫「地址」欄位,系統會自動定位(OpenStreetMap 免費地理編碼)。點地圖標記可查看該地點的圖資清單。</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── AI 助理 ── -->
+    <section class="page" id="page-ai">
+      <div class="ai-layout">
+        <div class="card">
+          <div class="card-h"><h3>問答範圍</h3></div>
+          <div class="card-b">
+            <div class="field"><label>AI 服務</label><div id="aiProviderBadge"><span class="provider-badge">尚未設定</span></div>
+              <div class="help">到「系統管理 → AI 設定」選擇 Gemini / Claude / GPT 並填入金鑰</div>
+            </div>
+            <div class="field"><label>指定資料夾(AI 只讀這個範圍)</label><select class="input" id="aiFolder" onchange="updateAiScope()"></select>
+              <div class="help" id="aiScopeHint"></div>
+            </div>
+            <div class="field"><label>本月 Token 用量</label>
+              <div class="mono" style="font-size:20px;color:var(--ink-900)" id="aiMonthTokens">0</div>
+              <div class="help">輸入 + 輸出合計,依各家 API 回報數值累計</div>
+            </div>
+            <button class="btn" style="width:100%;justify-content:center" onclick="clearChat()">清除對話</button>
+          </div>
+        </div>
+        <div class="card ai-chat">
+          <div class="ai-msgs" id="aiMsgs">
+            <div class="ai-hello" id="aiHello">
+              <div class="big">AI 圖資助理</div>
+              選擇資料夾範圍後直接發問,例如:<br>「114-工-002 這個案件的排水設計重點是什麼?」<br>「幫我整理擋土牆修復工程的地質狀況」<br>AI 會根據該範圍內 PDF 的內文回答並附上出處檔名。
+            </div>
+          </div>
+          <div class="ai-input">
+            <textarea class="input" id="aiQ" placeholder="輸入問題…(Enter 送出,Shift+Enter 換行)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();askAi()}"></textarea>
+            <button class="btn primary" id="aiSend" onclick="askAi()">送出</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 系統管理 ── -->
+    <section class="page" id="page-admin">
+      <div class="tabs">
+        <button class="tab active" data-tab="fields" onclick="switchTab('fields')">欄位定義</button>
+        <button class="tab" data-tab="cats" onclick="switchTab('cats')">分類管理</button>
+        <button class="tab" data-tab="folders" onclick="switchTab('folders')">資料夾管理</button>
+        <button class="tab" data-tab="ai" onclick="switchTab('ai')">AI 設定</button>
+        <button class="tab" data-tab="users" onclick="switchTab('users')">帳號管理</button>
+        <button class="tab" data-tab="api" onclick="switchTab('api')">API 連線設定</button>
+      </div>
+
+      <div class="admin-pane show" id="pane-fields">
+        <div class="card">
+          <div class="card-h"><h3>檔案自訂欄位</h3><span class="hint">上傳與編輯檔案時顯示的輸入欄位,統一由此定義。標籤功能為內建,使用者可自由貼標,不需在此管理。</span>
+            <div style="margin-left:auto"><button class="btn primary sm" onclick="openFieldModal()">＋ 新增欄位</button></div>
+          </div>
+          <div style="overflow-x:auto"><table class="table" id="fieldsTable"></table></div>
+        </div>
+      </div>
+
+      <div class="admin-pane" id="pane-cats">
+        <div class="card">
+          <div class="card-h"><h3>檔案分類</h3><span class="hint">一個檔案可套用多個分類</span>
+            <div style="margin-left:auto"><button class="btn primary sm" onclick="openCatModal()">＋ 新增分類</button></div>
+          </div>
+          <div style="overflow-x:auto"><table class="table" id="catsTable"></table></div>
+        </div>
+      </div>
+
+      <div class="admin-pane" id="pane-folders">
+        <div class="card">
+          <div class="card-h"><h3>資料夾結構</h3><span class="hint">邏輯資料夾,支援兩層結構</span>
+            <div style="margin-left:auto"><button class="btn primary sm" onclick="openFolderModal()">＋ 新增資料夾</button></div>
+          </div>
+          <div style="overflow-x:auto"><table class="table" id="foldersTable"></table></div>
+        </div>
+      </div>
+
+      <div class="admin-pane" id="pane-ai">
+        <div class="card" style="max-width:820px">
+          <div class="card-h"><h3>AI 服務設定</h3><span class="hint">金鑰存於 Google Sheet,由後端代呼叫,不會出現在前端</span></div>
+          <div class="card-b">
+            <div class="field"><label>AI 供應商</label>
+              <select class="input" id="aiProvider" onchange="renderProviderHelp()">
+                <option value="gemini">Google Gemini</option>
+                <option value="claude">Anthropic Claude</option>
+                <option value="gpt">OpenAI GPT</option>
+              </select>
+            </div>
+            <div class="provider-help" id="providerHelp"></div>
+            <div class="field"><label>API 金鑰 <span class="req">＊</span></label>
+              <input class="input mono" type="password" id="aiKey" placeholder="貼上金鑰" autocomplete="off">
+              <div class="help" id="aiKeyState"></div>
+            </div>
+            <div class="field"><label>模型名稱</label>
+              <input class="input mono" id="aiModel" placeholder="留空使用預設">
+              <div class="help" id="aiModelHelp"></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn primary" onclick="saveAiSettings()">儲存 AI 設定</button>
+              <button class="btn" onclick="testAi()">測試 AI 連線</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-pane" id="pane-users">
+        <div class="card">
+          <div class="card-h"><h3>帳號管理</h3><span class="hint">管理員可新增使用者、重設密碼</span>
+            <div style="margin-left:auto"><button class="btn primary sm" onclick="openUserModal()">＋ 新增帳號</button></div>
+          </div>
+          <div style="overflow-x:auto"><table class="table" id="usersTable"></table></div>
+        </div>
+      </div>
+
+      <div class="admin-pane" id="pane-api">
+        <div class="card" style="max-width:760px">
+          <div class="card-h"><h3>Google Apps Script API 連線</h3></div>
+          <div class="card-b">
+            <div class="field"><label>Web App 網址(部署後取得)</label>
+              <input class="input mono" id="apiUrl" placeholder="https://script.google.com/macros/s/XXXX/exec">
+              <div class="help">依「建置說明文件」部署 Apps Script 後,將網址貼入此處。若要永久保存,請將網址填入本 HTML 檔開頭的 <b>API_URL</b> 常數。</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn primary" onclick="connectApi()">連線並載入資料</button>
+              <button class="btn" onclick="testApi()">測試連線</button>
+            </div>
+            <div class="section-t">目前狀態</div>
+            <dl class="kv">
+              <dt>資料模式</dt><dd id="apiState">示範資料(內建假資料,操作不會真正儲存)</dd>
+              <dt>檔案儲存</dt><dd>Google Drive(由 Apps Script 上傳至指定資料夾)</dd>
+              <dt>欄位資料</dt><dd>Google Sheets(Files / Folders / Categories / Fields / Relations / Users / Settings / AiUsage)</dd>
+              <dt>PDF 內文</dt><dd>上傳時由 Drive OCR 抽取文字,存入 Sheet 供搜尋</dd>
+              <dt>登入驗證</dt><dd>帳密存於 Users 工作表(SHA-256 雜湊),登入後核發 8 小時效期 Token</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ══════════ 檔案詳情抽屜 ══════════ -->
+<div class="drawer-mask" id="drawerMask" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-h">
+    <div class="ficon" id="dIcon">PDF</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:900;color:var(--ink-900);font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="dName"></div>
+      <div class="mono muted" id="dMeta" style="font-size:11.5px"></div>
+    </div>
+    <button class="x" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-b">
+    <div class="section-t">分類</div>
+    <div id="dCats" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    <div class="section-t">標籤(直接輸入即可新增)</div>
+    <div id="dTags" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"></div>
+    <div class="section-t">欄位資訊</div>
+    <dl class="kv" id="dFields"></dl>
+    <div class="section-t">位置</div>
+    <div id="dAddr" style="font-size:13px"></div>
+    <div class="section-t">關聯檔案 <button class="btn sm ghost" style="margin-left:auto" onclick="openRelModal()">＋ 新增關聯</button></div>
+    <div id="dRels"></div>
+    <div class="section-t">PDF 內文摘錄</div>
+    <div id="dText" style="font-size:12.5px;color:var(--text-2);line-height:1.8;background:#F7F9FC;border-radius:8px;padding:12px;max-height:160px;overflow-y:auto"></div>
+  </div>
+  <div class="drawer-f">
+    <button class="btn primary" onclick="previewCurrent()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+      線上檢視
+    </button>
+    <button class="btn" onclick="downloadCurrent()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      下載
+    </button>
+    <button class="btn" onclick="openEditModal()">編輯資料</button>
+    <button class="btn danger" style="margin-left:auto" onclick="deleteCurrent()">刪除</button>
+  </div>
+</aside>
+
+<!-- ══════════ 上傳彈窗 ══════════ -->
+<div class="modal-mask" id="mask"></div>
+<div class="modal wide" id="uploadModal">
+  <div class="modal-h"><h3>上傳檔案(支援批次)</h3><button class="x" onclick="closeModal('uploadModal')">✕</button></div>
+  <div class="modal-b">
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+      <div class="big">拖曳檔案到這裡,或點擊選取</div>
+      <div style="font-size:12.5px;margin-top:4px">可一次選取多個檔案。PDF 上傳後會自動抽取內文供搜尋。</div>
+      <input type="file" id="fileInput" multiple hidden>
+    </div>
+    <div id="uplList"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-top:14px">
+      <div class="field"><label>存放資料夾 <span class="req">＊</span></label><select class="input" id="uFolder"></select></div>
+      <div class="field"><label>分類(可複選)</label><div class="cat-picker" id="uCats" style="padding-top:6px"></div></div>
+      <div class="field"><label>地址(填寫後可顯示於圖資地圖)</label><input class="input" id="uAddr" placeholder="例:新北市板橋區縣民大道二段7號"></div>
+      <div class="field"><label>標籤(空格或逗號分隔)</label><input class="input" id="uTags" placeholder="例:重要 待歸檔"></div>
+    </div>
+    <div class="section-t">檔案欄位資料(套用至本批全部檔案)</div>
+    <div id="uFields" style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px"></div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="closeModal('uploadModal')">取消</button>
+    <button class="btn primary" id="uplBtn" onclick="submitUpload()">開始上傳</button>
+  </div>
+</div>
+
+<!-- ══════════ 編輯檔案彈窗 ══════════ -->
+<div class="modal" id="editModal">
+  <div class="modal-h"><h3>編輯檔案資料</h3><button class="x" onclick="closeModal('editModal')">✕</button></div>
+  <div class="modal-b">
+    <div class="field"><label>檔案名稱</label><input class="input" id="eName"></div>
+    <div class="field"><label>資料夾</label><select class="input" id="eFolder"></select></div>
+    <div class="field"><label>分類</label><div class="cat-picker" id="eCats"></div></div>
+    <div class="field"><label>地址(填寫後可顯示於圖資地圖)</label><input class="input" id="eAddr" placeholder="例:臺中市西屯區臺灣大道三段99號"></div>
+    <div class="section-t">欄位資料</div>
+    <div id="eFields"></div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="closeModal('editModal')">取消</button>
+    <button class="btn primary" onclick="saveEdit()">儲存</button>
+  </div>
+</div>
+
+<!-- ══════════ 線上檢視 ══════════ -->
+<div class="modal wide" id="previewModal">
+  <div class="modal-h"><h3 id="pvTitle">線上檢視</h3>
+    <a class="btn sm" id="pvOpen" target="_blank" rel="noopener" style="margin-right:8px;text-decoration:none">在 Drive 開啟 ↗</a>
+    <button class="x" onclick="closeModal('previewModal')">✕</button></div>
+  <div id="pvBody"></div>
+</div>
+
+<!-- ══════════ 新增關聯(含進階搜尋) ══════════ -->
+<div class="modal wide" id="relModal">
+  <div class="modal-h"><h3>新增檔案關聯</h3><button class="x" onclick="closeModal('relModal')">✕</button></div>
+  <div class="modal-b">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">
+      <div class="field"><label>關聯類型</label>
+        <select class="input" id="relType">
+          <option>同一案件</option><option>前後版本</option><option>參考文件</option><option>附件</option><option>更正/勘誤</option>
+        </select>
+      </div>
+      <div class="field"><label>備註(選填)</label><input class="input" id="relNote" placeholder="例:第二版竣工圖"></div>
+    </div>
+    <div class="section-t">進階搜尋要關聯的檔案</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+      <input class="input" id="relSearch" placeholder="關鍵字(可空格分隔,含 PDF 內文)…" oninput="renderRelPick()">
+      <select class="input" id="relFolder" onchange="renderRelPick()"></select>
+      <select class="input" id="relCat" onchange="renderRelPick()"></select>
+      <select class="input" id="relFType" onchange="renderRelPick()"></select>
+    </div>
+    <div class="count-note" id="relCount" style="margin-bottom:6px"></div>
+    <div id="relPick" style="max-height:300px;overflow-y:auto"></div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="closeModal('relModal')">取消</button>
+    <button class="btn primary" onclick="saveRel()">建立關聯</button>
+  </div>
+</div>
+
+<!-- ══════════ 欄位定義彈窗 ══════════ -->
+<div class="modal" id="fieldModal">
+  <div class="modal-h"><h3 id="fieldModalT">新增欄位</h3><button class="x" onclick="closeModal('fieldModal')">✕</button></div>
+  <div class="modal-b">
+    <div class="field"><label>欄位名稱 <span class="req">＊</span></label><input class="input" id="fLabel" placeholder="例:案件編號"></div>
+    <div class="field"><label>欄位代碼(英文,存入 Sheet 用)</label><input class="input mono" id="fKey" placeholder="例:caseNo,留空自動產生"></div>
+    <div class="field"><label>型態</label>
+      <select class="input" id="fType" onchange="document.getElementById('fOptWrap').style.display=this.value==='select'?'block':'none'">
+        <option value="text">單行文字</option><option value="textarea">多行文字</option>
+        <option value="number">數字</option><option value="date">日期</option><option value="select">下拉選單</option>
+      </select>
+    </div>
+    <div class="field" id="fOptWrap" style="display:none"><label>選項(以逗號分隔)</label><input class="input" id="fOptions" placeholder="工務課, 企劃課, 養護課"></div>
+    <div class="field"><label style="display:flex;gap:7px;align-items:center;cursor:pointer"><input type="checkbox" id="fReq"> 必填欄位</label></div>
+    <div class="field"><label style="display:flex;gap:7px;align-items:center;cursor:pointer"><input type="checkbox" id="fList" checked> 顯示在檔案列表欄位</label></div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="closeModal('fieldModal')">取消</button>
+    <button class="btn primary" onclick="saveField()">儲存欄位</button>
+  </div>
+</div>
+
+<!-- ══════════ 分類彈窗 ══════════ -->
+<div class="modal" id="catModal">
+  <div class="modal-h"><h3 id="catModalT">新增分類</h3><button class="x" onclick="closeModal('catModal')">✕</button></div>
+  <div class="modal-b">
+    <div class="field"><label>分類名稱 <span class="req">＊</span></label><input class="input" id="cName"></div>
+    <div class="field"><label>代表色</label><input type="color" class="input" id="cColor" value="#1D4E7E" style="height:40px;padding:4px"></div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="closeModal('catModal')">取消</button>
+    <button class="btn primary" onclick="saveCat()">儲存分類</button>
+  </div>
+</div>
+
+<!-- ══════════ 資料夾彈窗 ══════════ -->
+<div class="modal" id="folderModal">
+  <div class="modal-h"><h3 id="folderModalT">新增資料夾</h3><button class="x" onclick="closeModal('folderModal')">✕</button></div>
+  <div class="modal-b">
+    <div class="field"><label>資料夾名稱 <span class="req">＊</span></label><input class="input" id="foName"></div>
+    <div class="field"><label>上層資料夾</label><select class="input" id="foParent"><option value="">(最上層)</option></select></div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="closeModal('folderModal')">取消</button>
+    <button class="btn primary" onclick="saveFolder()">儲存資料夾</button>
+  </div>
+</div>
+
+<!-- ══════════ 帳號彈窗 ══════════ -->
+<div class="modal" id="userModal">
+  <div class="modal-h"><h3 id="userModalT">新增帳號</h3><button class="x" onclick="closeModal('userModal')">✕</button></div>
+  <div class="modal-b">
+    <div class="field"><label>帳號 <span class="req">＊</span></label><input class="input mono" id="uUsername" autocomplete="off"></div>
+    <div class="field"><label>顯示名稱</label><input class="input" id="uDisplay" placeholder="例:王小明"></div>
+    <div class="field"><label>密碼 <span class="req">＊</span></label><input class="input" type="password" id="uPassword" autocomplete="new-password">
+      <div class="help" id="uPwdHelp">新增帳號時必填;編輯時留空表示不變更密碼</div></div>
+    <div class="field"><label>角色</label>
+      <select class="input" id="uRole"><option value="admin">管理員(可進系統管理)</option><option value="user" selected>一般使用者</option></select>
+    </div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="closeModal('userModal')">取消</button>
+    <button class="btn primary" onclick="saveUser()">儲存帳號</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   圖資倉儲管理系統 v2 前端
+   ▸ 部署後端後,將 Web App 網址填入下方 API_URL 即接真實資料
+   ▸ API_URL 留空 = 示範資料模式(內建假資料,方便展示與驗收)
+   ▸ 示範模式登入:帳號 n821129x / 密碼 n821129x
+   ═══════════════════════════════════════════════════════════ */
+const API_URL = "https://script.google.com/macros/s/AKfycbzyN8oW2PX38lLP3GKb8S0a4CN0DaQQNRcamnZttkBPKl_TF48wGkQL4lB7tLp5y7tv/exec";   // ← 已接上正式後端
+
+const state = {
+  live:false, apiUrl:API_URL, token:"", user:null,
+  fields:[], categories:[], folders:[], files:[], relations:[], users:[],
+  settings:{aiProvider:'',aiModel:'',aiKeySet:false},
+  aiUsage:[],           // [{month:'2026-07',tokens:12345}]
+  currentFile:null, expFolder:"", searchResults:null,
+  facetSel:{type:new Set(),cat:new Set(),folder:new Set(),tag:new Set()},
+  uploadQueue:[], chat:[]
+};
+
+const PROVIDER_INFO = {
+  gemini:{name:'Google Gemini', defModel:'gemini-2.0-flash', keyHint:'金鑰開頭為 AIza…',
+    help:'到 <b>aistudio.google.com</b> → 右上「Get API key」建立金鑰(有免費額度)。<br>常用模型:<span class="mono">gemini-2.0-flash</span>(快、便宜)、<span class="mono">gemini-1.5-pro</span>(較強)。'},
+  claude:{name:'Anthropic Claude', defModel:'claude-sonnet-4-5', keyHint:'金鑰開頭為 sk-ant-…',
+    help:'到 <b>console.anthropic.com</b> → API Keys 建立金鑰(需綁付款方式)。<br>常用模型:<span class="mono">claude-sonnet-4-5</span>(平衡)、<span class="mono">claude-haiku-4-5</span>(快、便宜)。'},
+  gpt:{name:'OpenAI GPT', defModel:'gpt-4o-mini', keyHint:'金鑰開頭為 sk-…',
+    help:'到 <b>platform.openai.com</b> → API Keys 建立金鑰(需儲值)。<br>常用模型:<span class="mono">gpt-4o-mini</span>(快、便宜)、<span class="mono">gpt-4o</span>(較強)。'}
+};
+
+/* ── 示範資料 ─────────────────────────── */
+const TYPE_COLOR = {pdf:'#B4432F',dwg:'#1D4E7E',docx:'#3E5FA8',xlsx:'#2E7D5B',jpg:'#B7791F',png:'#B7791F',other:'#5B6C80'};
+function seedDemo(){
+  state.fields = [
+    {id:'f1',key:'caseNo',label:'案件編號',type:'text',required:true,showInList:true,options:''},
+    {id:'f2',key:'docNo',label:'圖號／文號',type:'text',required:false,showInList:true,options:''},
+    {id:'f3',key:'dept',label:'承辦單位',type:'select',required:false,showInList:false,options:'工務課,企劃課,養護課,總務課'},
+    {id:'f4',key:'docDate',label:'文件日期',type:'date',required:false,showInList:false,options:''},
+    {id:'f5',key:'note',label:'備註',type:'textarea',required:false,showInList:false,options:''},
+  ];
+  state.categories = [
+    {id:'c1',name:'設計圖',color:'#1D4E7E'},{id:'c2',name:'竣工圖',color:'#2E7D5B'},
+    {id:'c3',name:'契約文件',color:'#7C3AAF'},{id:'c4',name:'公文',color:'#B4432F'},
+    {id:'c5',name:'現場照片',color:'#B7791F'},{id:'c6',name:'報告書',color:'#0E7490'},
+  ];
+  state.folders = [
+    {id:'d1',name:'工程案件圖說',parentId:''},
+    {id:'d1a',name:'113 年度案件',parentId:'d1'},
+    {id:'d1b',name:'114 年度案件',parentId:'d1'},
+    {id:'d1c',name:'115 年度案件',parentId:'d1'},
+    {id:'d2',name:'竣工圖庫',parentId:''},
+    {id:'d3',name:'契約與招標文件',parentId:''},
+    {id:'d4',name:'會議與簽呈',parentId:''},
+    {id:'d5',name:'法規與範本',parentId:''},
+  ];
+  // [名稱, 類型, 資料夾, 分類, 案件, 內文, 標籤, 地址, lat, lng]
+  const rows=[
+    ['道路拓寬工程 平面設計圖','pdf','d1b','c1','114-工-002','本工程沿線排水系統採用RC矩形溝,斷面尺寸依水理計算成果配置。路基改善範圍全長1,250公尺,設計速率50公里。','重要',
+      '新北市板橋區縣民大道二段7號',25.0143,121.4672],
+    ['道路拓寬工程 排水設計圖','dwg','d1b','c1','114-工-002','','',
+      '新北市板橋區縣民大道二段7號',25.0143,121.4672],
+    ['道路拓寬工程 竣工圖 第1冊','pdf','d2','c2','113-工-001','竣工圖說內容包含平面圖、縱斷面圖及排水構造物詳圖,竣工數量與契約數量差異均已辦理變更設計。','已歸檔',
+      '臺北市中正區忠孝東路一段1號',25.0442,121.5215],
+    ['橋梁補強工程 結構計算書','pdf','d1a','c6','113-工-014','本橋梁耐震補強採鋼板包覆工法,設計地震力依公路橋梁耐震設計規範辦理,柱體韌性比檢核合格。','重要 耐震',
+      '桃園市桃園區復興路21號',24.9937,121.3010],
+    ['橋梁補強工程 施工契約','pdf','d3','c3','113-工-014','契約金額新臺幣壹仟貳佰萬元整,工期180日曆天,保固期限三年。逾期違約金按契約價金千分之一計算。','',
+      '',null,null],
+    ['雨水下水道清疏 開工報告','docx','d1b','c6','114-養-003','','',
+      '',null,null],
+    ['雨水下水道清疏 現場照片0412','jpg','d1b','c5','114-養-003','','待整理',
+      '臺中市西屯區臺灣大道三段99號',24.1618,120.6468],
+    ['人行道改善工程 設計圖說','pdf','d1c','c1','115-工-001','無障礙通行空間依市區道路及附屬工程設計規範辦理,人行道淨寬不得小於1.5公尺,路緣斜坡坡度不得大於1:12。','無障礙',
+      '高雄市苓雅區四維三路2號',22.6210,120.3123],
+    ['人行道改善工程 預算書','xlsx','d1c','c6','115-工-001','','',
+      '',null,null],
+    ['公園景觀工程 招標公告','pdf','d3','c4','115-企-002','本案採最有利標決標,投標廠商應具備景觀工程實績,資格文件請於期限內送達。','招標中',
+      '',null,null],
+    ['公園景觀工程 基本設計報告','pdf','d1c','c6','115-企-002','全區規劃保留既有喬木42株,新植喬木採原生樹種,雨水花園兼具滯洪與景觀機能。','',
+      '宜蘭縣宜蘭市中山路二段462號',24.7570,121.7530],
+    ['擋土牆修復工程 竣工圖','pdf','d2','c2','114-工-007','擋土牆修復段落樁號0K+120至0K+360,採重力式擋土牆,牆背設置排水濾層及洩水孔。','已歸檔',
+      '基隆市中正區信一路1號',25.1305,121.7415],
+    ['擋土牆修復工程 地質鑽探報告','pdf','d1b','c6','114-工-007','鑽孔共計6孔,深度15公尺,土層以砂質粉土為主,地下水位約於地表下3.2公尺。','地質',
+      '基隆市中正區信一路1號',25.1305,121.7415],
+    ['年度養護開口契約','pdf','d3','c3','114-養-003','開口契約項目包含路面坑洞修補、側溝清疏及緊急搶修,單價依契約詳細價目表辦理。','',
+      '',null,null],
+    ['第12次工程進度會議紀錄','docx','d4','c4','114-工-002','','',
+      '',null,null],
+    ['第13次工程進度會議紀錄','docx','d4','c4','114-工-002','','',
+      '',null,null],
+    ['變更設計簽呈(第一次)','pdf','d4','c4','114-工-002','因地下管線遷移致排水箱涵位置調整,辦理第一次變更設計,契約金額增加新臺幣捌拾萬元。','重要',
+      '',null,null],
+    ['市區道路設計規範摘要','pdf','d5','c6','','道路橫斷面配置應考量人行、自行車及車行空間,並依道路等級訂定設計速率與線形標準。','常用',
+      '',null,null],
+    ['工程督導查核缺失改善表','xlsx','d4','c4','113-工-001','','',
+      '',null,null],
+    ['路平專案成果報告','pdf','d5','c6','','本年度路平專案完成道路銑鋪12條,總面積約85,000平方公尺,平坦度檢測合格率98%。','',
+      '臺南市安平區永華路二段6號',22.9928,120.1846],
+    ['擋土牆修復工程 設計圖','dwg','d1b','c1','114-工-007','','',
+      '基隆市中正區信一路1號',25.1305,121.7415],
+    ['公園景觀工程 現場照片0620','jpg','d1c','c5','115-企-002','','待整理',
+      '宜蘭縣宜蘭市中山路二段462號',24.7570,121.7530],
+    ['橋梁定期檢測報告書','pdf','d5','c6','113-工-014','檢測橋梁共15座,依DERU評等作業,其中2座構件評為3級,建議納入次年度維修計畫。','檢測',
+      '',null,null],
+    ['道路拓寬工程 用地取得清冊','xlsx','d1b','c6','114-工-002','','',
+      '',null,null],
+  ];
+  const now=Date.now(), day=86400000;
+  state.files = rows.map((n,i)=>({
+    id:'F'+String(i+1).padStart(3,'0'),
+    name:n[0], fileType:n[1], folderId:n[2], categories:[n[3]],
+    driveFileId:'', size:Math.round(200+Math.random()*8000)*1024,
+    uploadTime:new Date(now-Math.floor(Math.random()*330)*day-i*3600000).toISOString(),
+    uploader:['王小明','陳雅婷','林志豪'][i%3],
+    customData:{caseNo:n[4],docNo:n[4]?('圖-'+(100+i)):'',dept:['工務課','企劃課','養護課'][i%3],docDate:'',note:''},
+    textContent:n[5]||'',
+    tags:(n[6]||'').split(/\s+/).filter(Boolean),
+    address:n[7]||'', lat:n[8], lng:n[9]
+  }));
+  state.relations = [
+    {id:'r1',fileId:'F001',relatedFileId:'F002',relationType:'同一案件',note:'排水設計圖'},
+    {id:'r2',fileId:'F001',relatedFileId:'F017',relationType:'更正/勘誤',note:'第一次變更設計'},
+    {id:'r3',fileId:'F012',relatedFileId:'F013',relationType:'參考文件',note:'鑽探成果'},
+    {id:'r4',fileId:'F004',relatedFileId:'F005',relationType:'同一案件',note:''},
+    {id:'r5',fileId:'F015',relatedFileId:'F016',relationType:'前後版本',note:''},
+  ];
+  state.users = [
+    {id:'u1',username:'n821129x',displayName:'系統管理員',role:'admin',password:'n821129x'},
+    {id:'u2',username:'user01',displayName:'王小明',role:'user',password:'1234'},
+  ];
+  state.settings = {aiProvider:'gemini',aiModel:'gemini-2.0-flash',aiKeySet:false};
+  const m=new Date();
+  state.aiUsage=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(m.getFullYear(),m.getMonth()-i,1);
+    state.aiUsage.push({month:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),
+      tokens:i===0?18420:Math.round(8000+Math.random()*42000)});
+  }
+}
+
+/* ── API 層 ─────────────────────────── */
+async function api(action, payload={}){
+  if(state.live){
+    const res = await fetch(state.apiUrl,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action,payload,token:state.token})
+    });
+    const j = await res.json();
+    if(!j.ok) throw new Error(j.error||'API 錯誤');
+    return j.data;
+  }
+  return mockApi(action,payload);
+}
+function uid(p){return p+Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4)}
+function mockApi(action,p){
+  switch(action){
+    case 'login':{
+      const u=state.users.find(x=>x.username===p.username&&x.password===p.password);
+      if(!u)throw new Error('帳號或密碼錯誤');
+      return {token:'demo-token',user:{id:u.id,username:u.username,displayName:u.displayName,role:u.role}};
+    }
+    case 'getConfig': return {folders:state.folders,categories:state.categories,fields:state.fields,relations:state.relations,
+      settings:{aiProvider:state.settings.aiProvider,aiModel:state.settings.aiModel,aiKeySet:state.settings.aiKeySet},
+      aiUsage:state.aiUsage};
+    case 'listFiles': return state.files;
+    case 'listUsers': return state.users.map(u=>({id:u.id,username:u.username,displayName:u.displayName,role:u.role}));
+    case 'saveUser':{
+      if(p.id){const u=state.users.find(x=>x.id===p.id);Object.assign(u,{username:p.username,displayName:p.displayName,role:p.role});if(p.password)u.password=p.password;return u}
+      if(state.users.some(x=>x.username===p.username))throw new Error('帳號已存在');
+      const u={id:uid('u'),...p};state.users.push(u);return u;
+    }
+    case 'deleteUser': state.users=state.users.filter(x=>x.id!==p.id); return true;
+    case 'saveSettings': Object.assign(state.settings,{aiProvider:p.aiProvider,aiModel:p.aiModel});
+      if(p.aiKey)state.settings.aiKeySet=true; return state.settings;
+    case 'aiChat':{
+      const scope=p.folderId?filesInFolder(p.folderId):state.files;
+      const withText=scope.filter(f=>f.textContent);
+      const usage={inputTokens:Math.round(800+Math.random()*2500),outputTokens:Math.round(150+Math.random()*400)};
+      state.aiUsage[state.aiUsage.length-1].tokens+=usage.inputTokens+usage.outputTokens;
+      return {answer:'【示範模式回覆】我目前使用內建假資料。連上正式 API 並在「系統管理 → AI 設定」填入金鑰後,我會實際閱讀「'+
+        (p.folderId?(folderOf(p.folderId)?.name||''):'全部檔案')+'」範圍內 '+withText.length+' 份已建立內文索引的 PDF,並根據內容回答你的問題、附上出處檔名。\n\n你剛才的問題是:「'+p.question+'」',
+        sources:withText.slice(0,3).map(f=>f.name), usage, provider:state.settings.aiProvider, model:state.settings.aiModel};
+    }
+    case 'uploadFile':{
+      const f={id:uid('F'),name:p.name,fileType:extOf(p.name),folderId:p.folderId,categories:p.categories,
+        driveFileId:'',size:p.size||0,uploadTime:new Date().toISOString(),uploader:state.user?.displayName||'目前使用者',
+        customData:p.customData||{},textContent:'',tags:p.tags||[],address:p.address||'',lat:p.lat??null,lng:p.lng??null};
+      state.files.unshift(f); return f;
+    }
+    case 'updateFile':{
+      const f=state.files.find(x=>x.id===p.id); Object.assign(f,p); return f;
+    }
+    case 'deleteFile': state.files=state.files.filter(x=>x.id!==p.id);
+      state.relations=state.relations.filter(r=>r.fileId!==p.id&&r.relatedFileId!==p.id); return true;
+    case 'addRelation':{const r={id:uid('r'),...p};state.relations.push(r);return r}
+    case 'deleteRelation': state.relations=state.relations.filter(r=>r.id!==p.id); return true;
+    case 'saveField':{
+      if(p.id){Object.assign(state.fields.find(x=>x.id===p.id),p)}
+      else{p.id=uid('f');if(!p.key)p.key='fld_'+p.id;state.fields.push(p)} return p;
+    }
+    case 'deleteField': state.fields=state.fields.filter(x=>x.id!==p.id); return true;
+    case 'saveCategory':{
+      if(p.id){Object.assign(state.categories.find(x=>x.id===p.id),p)}
+      else{p.id=uid('c');state.categories.push(p)} return p;
+    }
+    case 'deleteCategory': state.categories=state.categories.filter(x=>x.id!==p.id);
+      state.files.forEach(f=>f.categories=f.categories.filter(c=>c!==p.id)); return true;
+    case 'saveFolder':{
+      if(p.id){Object.assign(state.folders.find(x=>x.id===p.id),p)}
+      else{p.id=uid('d');state.folders.push(p)} return p;
+    }
+    case 'deleteFolder': state.folders=state.folders.filter(x=>x.id!==p.id&&x.parentId!==p.id); return true;
+  }
+}
+
+/* ── 小工具 ─────────────────────────── */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function extOf(n){const e=(n.split('.').pop()||'').toLowerCase();return ['pdf','dwg','docx','xlsx','jpg','png'].includes(e)?e:(e==='doc'?'docx':e==='xls'?'xlsx':e==='jpeg'?'jpg':'other')}
+function fsize(b){if(!b)return'—';return b>1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'}
+function fdate(iso){if(!iso)return'—';const d=new Date(iso);return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')}
+function catOf(id){return state.categories.find(c=>c.id===id)}
+function folderOf(id){return state.folders.find(f=>f.id===id)}
+function folderPath(id){const f=folderOf(id);if(!f)return'—';const p=folderOf(f.parentId);return p?p.name+' / '+f.name:f.name}
+function iconHtml(t){return `<div class="ficon" style="background:${TYPE_COLOR[t]||TYPE_COLOR.other}">${(t||'?').toUpperCase().slice(0,4)}</div>`}
+function catChips(ids){return (ids||[]).map(id=>{const c=catOf(id);return c?`<span class="chip"><span class="cdot" style="background:${c.color}"></span>${esc(c.name)}</span>`:''}).join(' ')||'<span class="muted">—</span>'}
+function tagChips(tags){return (tags||[]).map(t=>`<span class="tagchip">${esc(t)}</span>`).join(' ')}
+function terms(kw){return String(kw||'').trim().toLowerCase().split(/\s+/).filter(Boolean)}
+function markTerms(text,ts){
+  let html=esc(text);
+  ts.forEach(t=>{
+    const re=new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+    html=html.replace(re,'<mark>$1</mark>');
+  });
+  return html;
+}
+function toast(msg,err){const t=document.createElement('div');t.className='toast'+(err?' err':'');t.textContent=msg;$('toasts').appendChild(t);setTimeout(()=>t.remove(),2800)}
+function openModal(id){$('mask').classList.add('show');$(id).classList.add('show')}
+function closeModal(id){$(id).classList.remove('show');if(!document.querySelector('.modal.show'))$('mask').classList.remove('show')}
+document.getElementById('mask').addEventListener('click',()=>{document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));$('mask').classList.remove('show')});
+function fillSelect(sel,pairs){const v=sel.value;sel.innerHTML=pairs.map(p=>`<option value="${esc(p[0])}">${esc(p[1])}</option>`).join('');if([...sel.options].some(o=>o.value===v))sel.value=v}
+function folderOptions(withAll,allLabel){
+  const base=withAll?[['',allLabel||'全部資料夾']]:[];
+  return base.concat(state.folders.filter(f=>!f.parentId).flatMap(f=>{
+    const kids=state.folders.filter(k=>k.parentId===f.id);
+    return [[f.id,f.name],...kids.map(k=>[k.id,'　└ '+k.name])];
+  }));
+}
+
+/* ── 登入 ─────────────────────────── */
+let capCode='';
+function drawCaptcha(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  capCode='';for(let i=0;i<4;i++)capCode+=chars[Math.floor(Math.random()*chars.length)];
+  const cv=$('capCanvas'),ctx=cv.getContext('2d');
+  ctx.fillStyle='#F2F6FA';ctx.fillRect(0,0,120,42);
+  for(let i=0;i<5;i++){ctx.strokeStyle=`rgba(29,78,126,${.15+Math.random()*.2})`;ctx.beginPath();
+    ctx.moveTo(Math.random()*120,Math.random()*42);ctx.lineTo(Math.random()*120,Math.random()*42);ctx.stroke()}
+  for(let i=0;i<4;i++){
+    ctx.save();ctx.font=`${20+Math.random()*6}px 'JetBrains Mono',monospace`;
+    ctx.fillStyle=['#1D4E7E','#0D2B45','#B7791F','#B4432F'][i%4];
+    ctx.translate(14+i*27,28);ctx.rotate((Math.random()-.5)*.5);
+    ctx.fillText(capCode[i],0,0);ctx.restore();
+  }
+  for(let i=0;i<24;i++){ctx.fillStyle='rgba(13,43,69,.2)';ctx.fillRect(Math.random()*120,Math.random()*42,1.5,1.5)}
+}
+$('capCanvas').addEventListener('click',drawCaptcha);
+async function doLogin(){
+  const u=$('loginUser').value.trim(),pw=$('loginPwd').value,cap=$('loginCap').value.trim().toUpperCase();
+  const errEl=$('loginErr');errEl.textContent='';
+  if(!u||!pw){errEl.textContent='請輸入帳號與密碼';return}
+  if(cap!==capCode){errEl.textContent='驗證碼錯誤,請重新輸入';drawCaptcha();$('loginCap').value='';return}
+  try{
+    const r=await api('login',{username:u,password:pw});
+    state.token=r.token;state.user=r.user;
+    $('userName').textContent=r.user.displayName||r.user.username;
+    $('userAvatar').textContent=(r.user.displayName||r.user.username).slice(0,1);
+    $('loginWrap').style.display='none';
+    afterLogin();
+  }catch(e){errEl.textContent=e.message;drawCaptcha();$('loginCap').value=''}
+}
+function doLogout(){
+  state.token='';state.user=null;state.chat=[];
+  $('loginWrap').style.display='flex';
+  $('loginPwd').value='';$('loginCap').value='';drawCaptcha();
+}
+
+/* ── 導覽 ─────────────────────────── */
+const PAGE_META={dashboard:['首頁總覽','DASHBOARD'],explorer:['檔案總管','FILE EXPLORER'],search:['進階搜尋','ADVANCED SEARCH'],map:['圖資地圖','GIS MAP'],ai:['AI 助理','AI ASSISTANT'],admin:['系統管理','ADMINISTRATION']};
+function go(page){
+  if(page==='admin'&&state.user&&state.user.role!=='admin'){toast('僅管理員可進入系統管理',1);return}
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('show',p.id==='page-'+page));
+  $('pageTitle').textContent=PAGE_META[page][0];$('pageCrumb').textContent=PAGE_META[page][1];
+  if(page==='dashboard')renderDashboard();
+  if(page==='explorer')renderExplorerAll();
+  if(page==='search')prepSearch();
+  if(page==='map')renderMapPage();
+  if(page==='ai')renderAiPage();
+  if(page==='admin')renderAdmin();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));
+
+/* ── 首頁 ─────────────────────────── */
+let charts={};
+function renderDashboard(){
+  const fs=state.files, mNow=new Date(), thisMonth=fs.filter(f=>{const d=new Date(f.uploadTime);return d.getFullYear()===mNow.getFullYear()&&d.getMonth()===mNow.getMonth()}).length;
+  const totalSize=fs.reduce((a,f)=>a+(f.size||0),0);
+  const pdfIndexed=fs.filter(f=>f.fileType==='pdf'&&f.textContent).length;
+  const monthTokens=(state.aiUsage[state.aiUsage.length-1]?.tokens)||0;
+  $('statGrid').innerHTML=[
+    ['檔案總數',fs.length+'',state.folders.length+' 個資料夾','M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
+    ['本月上傳',thisMonth+'',fdate(mNow.toISOString()).slice(0,7)+' 月份','M12 19V5M5 12l7-7 7 7'],
+    ['儲存用量',(totalSize/1048576).toFixed(0)+' MB','存放於 Google Drive','M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'],
+    ['PDF 內文索引',pdfIndexed+'','可被全文搜尋','M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-3.5-3.5'],
+    ['AI Token(本月)',monthTokens.toLocaleString(),'輸入+輸出合計','M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z'],
+  ].map(s=>`<div class="stat"><div class="k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="${s[3]}"/></svg>${s[0]}</div><div class="v">${s[1]}</div><div class="d">${s[2]}</div></div>`).join('');
+
+  const grid={color:'#E7ECF3'};
+  const byCase={};fs.forEach(f=>{const c=f.customData?.caseNo||'(未填案件)';byCase[c]=(byCase[c]||0)+1});
+  const caseArr=Object.entries(byCase).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  drawChart('chCase','bar',{labels:caseArr.map(x=>x[0]),datasets:[{data:caseArr.map(x=>x[1]),backgroundColor:'#1D4E7E',borderRadius:5,maxBarThickness:34}]},
+    {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid},x:{grid:{display:false}}}});
+
+  const byType={};fs.forEach(f=>{byType[f.fileType.toUpperCase()]=(byType[f.fileType.toUpperCase()]||0)+1});
+  drawChart('chType','doughnut',{labels:Object.keys(byType),datasets:[{data:Object.values(byType),
+    backgroundColor:Object.keys(byType).map(t=>TYPE_COLOR[t.toLowerCase()]||'#5B6C80'),borderWidth:2,borderColor:'#fff'}]},
+    {plugins:{legend:{position:'right'}},cutout:'62%'});
+
+  const byCat={};state.categories.forEach(c=>byCat[c.id]=0);fs.forEach(f=>(f.categories||[]).forEach(c=>{if(c in byCat)byCat[c]++}));
+  drawChart('chCat','bar',{labels:state.categories.map(c=>c.name),datasets:[{data:state.categories.map(c=>byCat[c.id]),
+    backgroundColor:state.categories.map(c=>c.color),borderRadius:5,maxBarThickness:34}]},
+    {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0},grid},y:{grid:{display:false}}}});
+
+  $('aiUsageHint').textContent='本月 '+monthTokens.toLocaleString()+' tokens';
+  drawChart('chAi','bar',{labels:state.aiUsage.map(u=>u.month.slice(5)+'月'),
+    datasets:[{data:state.aiUsage.map(u=>u.tokens),backgroundColor:'#0E7490',borderRadius:5,maxBarThickness:40}]},
+    {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid},x:{grid:{display:false}}}});
+
+  const recent=[...fs].sort((a,b)=>b.uploadTime.localeCompare(a.uploadTime)).slice(0,8);
+  $('recentTable').innerHTML=`<thead><tr><th>檔案</th><th>分類</th><th>標籤</th><th>案件編號</th><th>資料夾</th><th class="nowrap">上傳時間</th></tr></thead><tbody>`+
+    recent.map(f=>`<tr onclick="openDrawer('${f.id}')">
+      <td><div class="fname">${iconHtml(f.fileType)}<div><div class="nm">${esc(f.name)}</div><div class="meta">${fsize(f.size)} · ${esc(f.uploader)}</div></div></div></td>
+      <td>${catChips(f.categories)}</td>
+      <td>${tagChips(f.tags)||'<span class="muted">—</span>'}</td>
+      <td class="mono">${esc(f.customData?.caseNo||'—')}</td>
+      <td class="muted">${esc(folderPath(f.folderId))}</td>
+      <td class="mono nowrap">${fdate(f.uploadTime)}</td></tr>`).join('')+`</tbody>`;
+}
+function drawChart(id,type,data,options){
+  if(charts[id])charts[id].destroy();
+  charts[id]=new Chart($(id),{type,data,options:{responsive:true,maintainAspectRatio:false,
+    ...options,plugins:{...(options.plugins||{}),tooltip:{backgroundColor:'#0D2B45'}}}});
+}
+function heroGo(){const kw=$('heroSearch').value.trim();go('search');$('sKw').value=kw;$('sContent').checked=$('heroContent').checked;if(kw)doSearch()}
+function quickSearch(kw){$('heroSearch').value=kw;heroGo()}
+
+/* ── 檔案總管 ─────────────────────────── */
+function renderExplorerAll(){renderTree();fillSelect($('expCat'),[['','全部分類'],...state.categories.map(c=>[c.id,c.name])]);
+  const types=[...new Set(state.files.map(f=>f.fileType))];
+  fillSelect($('expType'),[['','全部類型'],...types.map(t=>[t,t.toUpperCase()])]);renderExplorer()}
+function renderTree(){
+  const cnt=id=>{const kids=state.folders.filter(f=>f.parentId===id).map(f=>f.id);return state.files.filter(f=>f.folderId===id||kids.includes(f.folderId)).length};
+  const item=f=>`<div class="tree-item ${state.expFolder===f.id?'active':''}" onclick="selFolder('${f.id}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span><span class="cnt">${cnt(f.id)}</span></div>`;
+  let html=`<div class="tree-item ${state.expFolder===''?'active':''}" onclick="selFolder('')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      全部檔案<span class="cnt">${state.files.length}</span></div>`;
+  state.folders.filter(f=>!f.parentId).forEach(f=>{
+    html+=item(f);
+    const kids=state.folders.filter(k=>k.parentId===f.id);
+    if(kids.length)html+=`<div class="tree-kids">`+kids.map(k=>item(k)).join('')+`</div>`;
+  });
+  $('folderTree').innerHTML=html;
+}
+function selFolder(id){state.expFolder=id;renderTree();renderExplorer()}
+function filesInFolder(id){
+  if(!id)return state.files;
+  const kids=state.folders.filter(f=>f.parentId===id).map(f=>f.id);
+  return state.files.filter(f=>f.folderId===id||kids.includes(f.folderId));
+}
+function fileMatchesTerms(f,ts,withContent){
+  if(!ts.length)return true;
+  const hay=(f.name+' '+Object.values(f.customData||{}).join(' ')+' '+(f.tags||[]).join(' ')+' '+(f.address||'')
+    +(withContent?' '+(f.textContent||''):'')).toLowerCase();
+  return ts.every(t=>hay.includes(t));
+}
+function renderExplorer(){
+  const cat=$('expCat').value,type=$('expType').value,sort=$('expSort').value,ts=terms($('expKw').value);
+  let fs=filesInFolder(state.expFolder);
+  if(cat)fs=fs.filter(f=>(f.categories||[]).includes(cat));
+  if(type)fs=fs.filter(f=>f.fileType===type);
+  if(ts.length)fs=fs.filter(f=>fileMatchesTerms(f,ts,false));
+  fs=[...fs].sort((a,b)=>sort==='name'?a.name.localeCompare(b.name,'zh-Hant'):sort==='asc'?a.uploadTime.localeCompare(b.uploadTime):b.uploadTime.localeCompare(a.uploadTime));
+  $('expCount').textContent=fs.length+' 筆';
+  const listFields=state.fields.filter(f=>f.showInList);
+  const head=`<thead><tr><th>檔案</th><th>分類</th><th>標籤</th>${listFields.map(f=>`<th>${esc(f.label)}</th>`).join('')}<th class="nowrap">上傳時間</th><th>操作</th></tr></thead>`;
+  if(!fs.length){$('fileTable').innerHTML=head+`<tbody><tr><td colspan="${5+listFields.length}"><div class="empty"><div class="t">此範圍沒有檔案</div>換個資料夾或條件,或按右上角「上傳檔案」。</div></td></tr></tbody>`;return}
+  $('fileTable').innerHTML=head+`<tbody>`+fs.map(f=>`<tr onclick="openDrawer('${f.id}')">
+      <td><div class="fname">${iconHtml(f.fileType)}<div><div class="nm">${esc(f.name)}</div><div class="meta">${fsize(f.size)} · ${esc(folderPath(f.folderId))}</div></div></div></td>
+      <td>${catChips(f.categories)}</td>
+      <td>${tagChips(f.tags)||'<span class="muted">—</span>'}</td>
+      ${listFields.map(fd=>`<td class="mono">${esc(f.customData?.[fd.key]||'—')}</td>`).join('')}
+      <td class="mono nowrap">${fdate(f.uploadTime)}</td>
+      <td class="nowrap" onclick="event.stopPropagation()">
+        <button class="btn sm ghost" onclick="previewFile('${f.id}')">檢視</button>
+        <button class="btn sm ghost" onclick="downloadFile('${f.id}')">下載</button>
+      </td></tr>`).join('')+`</tbody>`;
+}
+
+/* ── 檔案詳情抽屜 ─────────────────────────── */
+function openDrawer(id){
+  const f=state.files.find(x=>x.id===id);if(!f)return;state.currentFile=f;
+  $('dIcon').style.background=TYPE_COLOR[f.fileType]||TYPE_COLOR.other;$('dIcon').textContent=f.fileType.toUpperCase().slice(0,4);
+  $('dName').textContent=f.name;
+  $('dMeta').textContent=`${f.id} · ${fsize(f.size)} · ${fdate(f.uploadTime)} 上傳 · ${f.uploader||''} · ${folderPath(f.folderId)}`;
+  $('dCats').innerHTML=catChips(f.categories);
+  renderDrawerTags();
+  $('dFields').innerHTML=state.fields.map(fd=>`<dt>${esc(fd.label)}</dt><dd>${esc(f.customData?.[fd.key]||'—')}</dd>`).join('')||'<dd class="muted">尚未定義欄位</dd>';
+  $('dAddr').innerHTML=f.address
+    ?`<span style="color:var(--ink-700)">📍 ${esc(f.address)}</span> ${f.lat?`<button class="btn sm ghost" onclick="go('map');setTimeout(()=>flyToFile('${f.id}'),300)">在地圖上顯示</button>`:'<span class="muted">(尚未定位)</span>'}`
+    :'<span class="muted">未填寫地址,編輯資料可加入</span>';
+  renderDrawerRels();
+  $('dText').innerHTML=f.textContent?esc(f.textContent):'<span class="muted">'+(f.fileType==='pdf'?'尚未建立內文索引(正式模式上傳時會自動抽取)':'非 PDF 檔案,無內文索引')+'</span>';
+  $('drawerMask').classList.add('show');$('drawer').classList.add('show');
+}
+function renderDrawerTags(){
+  const f=state.currentFile;
+  $('dTags').innerHTML=(f.tags||[]).map((t,i)=>
+    `<span class="tagchip">${esc(t)}<span class="rm" onclick="removeTag(${i})">✕</span></span>`).join('')+
+    `<input class="tag-input" placeholder="＋新增標籤" onkeydown="if(event.key==='Enter')addTag(this)">`;
+}
+async function addTag(inp){
+  const v=inp.value.trim();if(!v)return;
+  const f=state.currentFile;
+  if((f.tags||[]).includes(v)){inp.value='';return}
+  f.tags=[...(f.tags||[]),v];
+  await api('updateFile',{id:f.id,tags:f.tags});
+  renderDrawerTags();refreshViews();
+}
+async function removeTag(i){
+  const f=state.currentFile;
+  f.tags.splice(i,1);
+  await api('updateFile',{id:f.id,tags:f.tags});
+  renderDrawerTags();refreshViews();
+}
+function renderDrawerRels(){
+  const f=state.currentFile;
+  const rels=state.relations.filter(r=>r.fileId===f.id||r.relatedFileId===f.id);
+  $('dRels').innerHTML=rels.length?rels.map(r=>{
+    const other=state.files.find(x=>x.id===(r.fileId===f.id?r.relatedFileId:r.fileId));
+    if(!other)return'';
+    return `<div class="rel-item" onclick="openDrawer('${other.id}')">
+      ${iconHtml(other.fileType)}
+      <div style="flex:1;min-width:0"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(other.name)}</div>
+      <div class="muted" style="font-size:11.5px">${esc(r.note||'')}</div></div>
+      <span class="tag">${esc(r.relationType)}</span>
+      <button class="x" title="移除關聯" onclick="event.stopPropagation();removeRel('${r.id}')">✕</button></div>`;
+  }).join(''):'<div class="muted" style="font-size:12.5px">尚無關聯檔案</div>';
+}
+function closeDrawer(){$('drawer').classList.remove('show');$('drawerMask').classList.remove('show')}
+async function removeRel(id){await api('deleteRelation',{id});if(!state.live)0;renderDrawerRels();toast('已移除關聯')}
+function previewCurrent(){previewFile(state.currentFile.id)}
+function downloadCurrent(){downloadFile(state.currentFile.id)}
+async function deleteCurrent(){
+  const f=state.currentFile;
+  if(!confirm(`確定刪除「${f.name}」?\n正式模式下 Drive 檔案會移至垃圾桶。`))return;
+  await api('deleteFile',{id:f.id});closeDrawer();refreshViews();toast('已刪除檔案');
+}
+function previewFile(id){
+  const f=state.files.find(x=>x.id===id);if(!f)return;
+  $('pvTitle').textContent=f.name;
+  if(f.driveFileId){
+    $('pvOpen').style.display='';$('pvOpen').href=`https://drive.google.com/file/d/${f.driveFileId}/view`;
+    $('pvBody').innerHTML=`<iframe class="preview-frame" src="https://drive.google.com/file/d/${f.driveFileId}/preview" allow="autoplay"></iframe>`;
+  }else{
+    $('pvOpen').style.display='none';
+    $('pvBody').innerHTML=`<div class="empty" style="padding:70px 30px"><div class="t">示範資料無實際檔案</div>
+      正式模式下,此處會以 Google Drive 內嵌預覽器顯示 PDF / 圖片 / Office 文件。</div>`;
+  }
+  openModal('previewModal');
+}
+function downloadFile(id){
+  const f=state.files.find(x=>x.id===id);if(!f)return;
+  if(f.driveFileId){window.open(`https://drive.google.com/uc?export=download&id=${f.driveFileId}`,'_blank')}
+  else toast('示範資料無實際檔案,正式模式將直接下載 Drive 檔案');
+}
+
+/* ── 進階搜尋(多關鍵字 AND)─────────────────────────── */
+function prepSearch(){
+  fillSelect($('sFolder'),folderOptions(true));
+  $('sCats').innerHTML=state.categories.map(c=>
+    `<span class="chip click" data-cat="${c.id}" onclick="this.classList.toggle('on')"><span class="cdot" style="background:${c.color}"></span>${esc(c.name)}</span>`).join('');
+}
+function doSearch(){
+  const ts=terms($('sKw').value);
+  const inContent=$('sContent').checked, folderId=$('sFolder').value;
+  const cats=[...document.querySelectorAll('#sCats .chip.on')].map(c=>c.dataset.cat);
+  const from=$('sFrom').value, to=$('sTo').value;
+  let fs=filesInFolder(folderId);
+  if(cats.length)fs=fs.filter(f=>cats.some(c=>(f.categories||[]).includes(c)));
+  if(from)fs=fs.filter(f=>f.uploadTime>=from);
+  if(to)fs=fs.filter(f=>f.uploadTime<=to+'T23:59:59');
+  const results=[];
+  fs.forEach(f=>{
+    if(!ts.length){results.push({f,score:1,where:'',snippet:''});return}
+    const nameStr=f.name.toLowerCase();
+    const fieldStr=(Object.values(f.customData||{}).join(' ')+' '+(f.tags||[]).join(' ')+' '+(f.address||'')).toLowerCase();
+    const contentStr=(f.textContent||'').toLowerCase();
+    // 每一組關鍵字都必須在(檔名 ∪ 欄位/標籤 ∪ 內文)中出現
+    const perTerm=ts.map(t=>({
+      t, name:nameStr.includes(t), field:fieldStr.includes(t),
+      content:inContent&&contentStr.includes(t)
+    }));
+    if(!perTerm.every(x=>x.name||x.field||x.content))return;
+    let snippet='';
+    const cTerm=perTerm.find(x=>x.content);
+    if(cTerm){
+      const t=f.textContent,i=t.toLowerCase().indexOf(cTerm.t);
+      const s=Math.max(0,i-40),e=Math.min(t.length,i+cTerm.t.length+70);
+      snippet=(s>0?'…':'')+markTerms(t.slice(s,e),ts)+(e<t.length?'…':'');
+    }
+    const score=perTerm.reduce((a,x)=>a+(x.name?3:0)+(x.field?2:0)+(x.content?2:0),0);
+    const where=[perTerm.some(x=>x.name)&&'檔名',perTerm.some(x=>x.field)&&'欄位/標籤',perTerm.some(x=>x.content)&&'PDF內文'].filter(Boolean).join('、');
+    results.push({f,score,where,snippet,ts});
+  });
+  state.searchResults=results;
+  state.facetSel={type:new Set(),cat:new Set(),folder:new Set(),tag:new Set()};
+  renderFacets();renderResults();
+}
+function renderFacets(){
+  const rs=state.searchResults||[];
+  if(!rs.length){$('facetBox').style.display='none';return}
+  $('facetBox').style.display='block';
+  const count=fn=>{const m={};rs.forEach(r=>{fn(r.f).forEach(k=>{if(k)m[k]=(m[k]||0)+1})});return m};
+  const types=count(f=>[f.fileType]), cats=count(f=>f.categories||[]), folders=count(f=>[f.folderId]), tags=count(f=>f.tags||[]);
+  const chip=(group,key,label,n)=>`<span class="chip click ${state.facetSel[group].has(key)?'on':''}" onclick="toggleFacet('${group}','${esc(key)}')">${esc(label)} <b class="mono" style="font-size:10.5px">${n}</b></span>`;
+  $('facets').innerHTML=
+    `<h4 style="margin-top:0">檔案類型</h4><div class="chips">${Object.entries(types).map(([k,n])=>chip('type',k,k.toUpperCase(),n)).join('')}</div>`+
+    `<h4>分類</h4><div class="chips">${Object.entries(cats).map(([k,n])=>chip('cat',k,catOf(k)?.name||k,n)).join('')}</div>`+
+    `<h4>標籤</h4><div class="chips">${Object.entries(tags).map(([k,n])=>chip('tag',k,k,n)).join('')||'<span class="muted" style="font-size:12px">結果中無標籤</span>'}</div>`+
+    `<h4>資料夾</h4><div class="chips">${Object.entries(folders).map(([k,n])=>chip('folder',k,folderOf(k)?.name||'—',n)).join('')}</div>`;
+}
+function toggleFacet(group,key){
+  const s=state.facetSel[group];s.has(key)?s.delete(key):s.add(key);renderFacets();renderResults();
+}
+function renderResults(){
+  let rs=state.searchResults;
+  if(rs===null)return;
+  const sel=state.facetSel;
+  let shown=rs.filter(r=>
+    (!sel.type.size||sel.type.has(r.f.fileType))&&
+    (!sel.cat.size||[...sel.cat].some(c=>(r.f.categories||[]).includes(c)))&&
+    (!sel.tag.size||[...sel.tag].some(t=>(r.f.tags||[]).includes(t)))&&
+    (!sel.folder.size||sel.folder.has(r.f.folderId)));
+  const sort=$('sSort').value;
+  shown=[...shown].sort((a,b)=>sort==='rel'?b.score-a.score:sort==='asc'?a.f.uploadTime.localeCompare(b.f.uploadTime):b.f.uploadTime.localeCompare(a.f.uploadTime));
+  $('sCount').textContent=`共 ${shown.length} 筆${rs.length!==shown.length?`(已從 ${rs.length} 筆篩選)`:''}`;
+  if(!shown.length){$('resultsBox').innerHTML=`<div class="empty"><div class="t">沒有符合的結果</div>多關鍵字為「同時符合」,可減少關鍵字或放寬條件。</div>`;return}
+  $('resultsBox').innerHTML=shown.map(r=>{const f=r.f;const ts=r.ts||[];return `<div class="result" onclick="openDrawer('${f.id}')">
+    <div class="fname">${iconHtml(f.fileType)}<div style="min-width:0"><div class="nm">${ts.length?markTerms(f.name,ts):esc(f.name)}</div>
+      <div class="meta">${esc(folderPath(f.folderId))}</div></div>
+      <div style="margin-left:auto;display:flex;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
+        <button class="btn sm ghost" onclick="previewFile('${f.id}')">檢視</button>
+        <button class="btn sm ghost" onclick="downloadFile('${f.id}')">下載</button></div></div>
+    ${r.snippet?`<div class="snippet">${r.snippet}</div>`:''}
+    <div class="rmeta"><span>${fdate(f.uploadTime)} 上傳</span><span>${fsize(f.size)}</span>
+      ${f.customData?.caseNo?`<span>案件 ${esc(f.customData.caseNo)}</span>`:''}
+      ${r.where?`<span style="color:var(--ok)">符合:${r.where}</span>`:''}</div>
+    <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${catChips(f.categories)} ${tagChips(f.tags)}</div></div>`}).join('');
+}
+
+/* ── 圖資地圖 ─────────────────────────── */
+let twMap=null, mapLayer=null;
+function renderMapPage(){
+  fillSelect($('mapFolder'),folderOptions(true));
+  if(!twMap){
+    twMap=L.map('twMap',{scrollWheelZoom:true}).setView([23.7,120.96],8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'&copy; OpenStreetMap 貢獻者',maxZoom:19}).addTo(twMap);
+    mapLayer=L.layerGroup().addTo(twMap);
+  }
+  setTimeout(()=>twMap.invalidateSize(),120);
+  renderMap();
+}
+function renderMap(){
+  if(!twMap)return;
+  mapLayer.clearLayers();
+  const folderId=$('mapFolder').value;
+  const fs=filesInFolder(folderId).filter(f=>f.lat!=null&&f.lng!=null);
+  $('mapCount').textContent=fs.length+' 筆已定位';
+  // 依座標分組
+  const groups={};
+  fs.forEach(f=>{const k=f.lat.toFixed(4)+','+f.lng.toFixed(4);(groups[k]=groups[k]||[]).push(f)});
+  Object.entries(groups).forEach(([k,list])=>{
+    const [lat,lng]=k.split(',').map(Number);
+    const mk=L.marker([lat,lng]).addTo(mapLayer);
+    const html=`<div style="min-width:200px"><b style="color:#1D4E7E">${esc(list[0].address||'未填地址')}</b>
+      <div class="mono" style="font-size:10.5px;color:#8B99AB;margin-bottom:4px">${list.length} 筆圖資</div>`+
+      list.map(f=>`<div class="pop-file" onclick="openDrawer('${f.id}')">${esc(f.name)}</div>`).join('')+`</div>`;
+    mk.bindPopup(html);
+    list.forEach(f=>f._marker=mk);
+  });
+  $('mapList').innerHTML=fs.length?fs.map(f=>`<div class="map-file" onclick="flyToFile('${f.id}')">
+      <div class="fname">${iconHtml(f.fileType)}<div style="min-width:0"><div class="nm" style="max-width:210px;font-size:13px">${esc(f.name)}</div>
+      <div class="addr">📍 ${esc(f.address)}</div></div></div></div>`).join('')
+    :`<div class="empty"><div class="t">尚無定位圖資</div>上傳或編輯檔案時填寫「地址」,即會出現在地圖上。</div>`;
+}
+function flyToFile(id){
+  const f=state.files.find(x=>x.id===id);
+  if(!f||f.lat==null){toast('此檔案尚未定位',1);return}
+  if(!document.querySelector('#page-map.show'))go('map');
+  setTimeout(()=>{twMap.flyTo([f.lat,f.lng],15,{duration:.8});if(f._marker)f._marker.openPopup()},150);
+}
+/* 地理編碼:OpenStreetMap Nominatim(免費,約每秒 1 次) */
+async function geocode(addr){
+  if(!addr)return null;
+  try{
+    const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=tw&q='+encodeURIComponent(addr),
+      {headers:{'Accept-Language':'zh-TW'}});
+    const j=await r.json();
+    if(j&&j[0])return {lat:parseFloat(j[0].lat),lng:parseFloat(j[0].lon)};
+  }catch(e){}
+  return null;
+}
+
+/* ── AI 助理 ─────────────────────────── */
+function renderAiPage(){
+  fillSelect($('aiFolder'),folderOptions(true,'全部檔案'));
+  const p=PROVIDER_INFO[state.settings.aiProvider];
+  $('aiProviderBadge').innerHTML=p
+    ?`<span class="provider-badge">● ${p.name} · ${esc(state.settings.aiModel||p.defModel)}${state.settings.aiKeySet?'':'(未填金鑰)'}</span>`
+    :'<span class="provider-badge">尚未設定</span>';
+  $('aiMonthTokens').textContent=((state.aiUsage[state.aiUsage.length-1]?.tokens)||0).toLocaleString();
+  updateAiScope();
+}
+function updateAiScope(){
+  const fid=$('aiFolder').value;
+  const fs=filesInFolder(fid), idx=fs.filter(f=>f.textContent).length;
+  $('aiScopeHint').textContent=`範圍內 ${fs.length} 個檔案,其中 ${idx} 份已建立內文索引可供 AI 閱讀`;
+}
+function pushMsg(role,html){
+  $('aiHello')?.remove();
+  const d=document.createElement('div');d.className='msg '+role;d.innerHTML=html;
+  $('aiMsgs').appendChild(d);$('aiMsgs').scrollTop=$('aiMsgs').scrollHeight;
+  return d;
+}
+async function askAi(){
+  const q=$('aiQ').value.trim();if(!q)return;
+  $('aiQ').value='';
+  pushMsg('user',esc(q));
+  const thinking=pushMsg('ai','<span class="muted">思考中…</span>');
+  $('aiSend').disabled=true;
+  try{
+    const r=await api('aiChat',{question:q,folderId:$('aiFolder').value});
+    thinking.innerHTML=esc(r.answer)+
+      (r.sources?.length?`<div class="src">出處:${r.sources.map(esc).join('、')}</div>`:'')+
+      `<div class="usage">${esc(r.provider||'')} ${esc(r.model||'')} · 輸入 ${r.usage?.inputTokens??'?'} + 輸出 ${r.usage?.outputTokens??'?'} tokens</div>`;
+    $('aiMonthTokens').textContent=((state.aiUsage[state.aiUsage.length-1]?.tokens)||0).toLocaleString();
+  }catch(e){thinking.innerHTML='<span style="color:var(--danger)">AI 回覆失敗:'+esc(e.message)+'</span>'}
+  $('aiSend').disabled=false;
+}
+function clearChat(){
+  $('aiMsgs').innerHTML=`<div class="ai-hello" id="aiHello"><div class="big">AI 圖資助理</div>選擇資料夾範圍後直接發問。</div>`;
+}
+
+/* ── 上傳 ─────────────────────────── */
+function openUpload(){
+  state.uploadQueue=[];renderUplList();
+  fillSelect($('uFolder'),folderOptions(false));
+  $('uCats').innerHTML=state.categories.map(c=>
+    `<span class="chip click" data-cat="${c.id}" onclick="this.classList.toggle('on')"><span class="cdot" style="background:${c.color}"></span>${esc(c.name)}</span>`).join('');
+  $('uAddr').value='';$('uTags').value='';
+  $('uFields').innerHTML=state.fields.map(fd=>fieldInput('u_',fd,'')).join('');
+  openModal('uploadModal');
+}
+function fieldInput(prefix,fd,val){
+  const id=prefix+fd.key, req=fd.required?'<span class="req">＊</span>':'';
+  let inp;
+  if(fd.type==='select'){
+    inp=`<select class="input" id="${id}"><option value="">請選擇…</option>${(fd.options||'').split(',').map(o=>o.trim()).filter(Boolean).map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  }else if(fd.type==='textarea'){
+    inp=`<textarea class="input" id="${id}">${esc(val)}</textarea>`;
+  }else{
+    inp=`<input class="input" type="${fd.type==='number'?'number':fd.type==='date'?'date':'text'}" id="${id}" value="${esc(val)}">`;
+  }
+  return `<div class="field"><label>${esc(fd.label)} ${req}</label>${inp}</div>`;
+}
+const dz=$('dropzone');
+['dragover','dragenter'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('on')}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('on')}));
+dz.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+$('fileInput').addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''});
+function addFiles(list){[...list].forEach(f=>state.uploadQueue.push({file:f,name:f.name}));renderUplList()}
+function renderUplList(){
+  $('uplList').innerHTML=state.uploadQueue.map((q,i)=>`<div class="upl-item">
+    ${iconHtml(extOf(q.name))}
+    <input class="input" value="${esc(q.name)}" onchange="state.uploadQueue[${i}].name=this.value">
+    <span class="mono muted nowrap">${fsize(q.file.size)}</span>
+    <button class="x" onclick="state.uploadQueue.splice(${i},1);renderUplList()">✕</button></div>`).join('')
+    ||'<div class="muted" style="text-align:center;font-size:12.5px;padding:4px">尚未加入檔案</div>';
+}
+function readCustomFields(prefix){
+  const data={};let missing=null;
+  state.fields.forEach(fd=>{
+    const v=($(prefix+fd.key)?.value||'').trim();
+    if(fd.required&&!v&&!missing)missing=fd.label;
+    data[fd.key]=v;
+  });
+  return {data,missing};
+}
+function parseTags(s){return String(s||'').split(/[\s,，、]+/).map(t=>t.trim()).filter(Boolean)}
+function fileToBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file)})}
+async function submitUpload(){
+  if(!state.uploadQueue.length){toast('請先加入檔案',1);return}
+  const folderId=$('uFolder').value;
+  const cats=[...document.querySelectorAll('#uCats .chip.on')].map(c=>c.dataset.cat);
+  const {data,missing}=readCustomFields('u_');
+  if(missing){toast('「'+missing+'」為必填欄位',1);return}
+  const address=$('uAddr').value.trim(), tags=parseTags($('uTags').value);
+  const btn=$('uplBtn');btn.disabled=true;
+  let geo=null;
+  if(address){btn.textContent='地址定位中…';geo=await geocode(address);
+    if(!geo)toast('地址無法自動定位,仍會儲存地址文字',1)}
+  try{
+    for(let i=0;i<state.uploadQueue.length;i++){
+      const q=state.uploadQueue[i];
+      btn.textContent=`上傳中 ${i+1}/${state.uploadQueue.length}…`;
+      const payload={name:q.name,folderId,categories:cats,customData:data,size:q.file.size,mimeType:q.file.type,
+        tags,address,lat:geo?.lat??null,lng:geo?.lng??null};
+      if(state.live)payload.base64=await fileToBase64(q.file);
+      await api('uploadFile',payload);
+    }
+    toast(`已上傳 ${state.uploadQueue.length} 個檔案`);
+    closeModal('uploadModal');
+    if(state.live)await loadAll();
+    refreshViews();
+  }catch(err){toast('上傳失敗:'+err.message,1)}
+  btn.disabled=false;btn.textContent='開始上傳';
+}
+
+/* ── 編輯 ─────────────────────────── */
+function openEditModal(){
+  const f=state.currentFile;
+  $('eName').value=f.name;
+  fillSelect($('eFolder'),folderOptions(false));
+  $('eFolder').value=f.folderId;
+  $('eCats').innerHTML=state.categories.map(c=>
+    `<span class="chip click ${(f.categories||[]).includes(c.id)?'on':''}" data-cat="${c.id}" onclick="this.classList.toggle('on')"><span class="cdot" style="background:${c.color}"></span>${esc(c.name)}</span>`).join('');
+  $('eAddr').value=f.address||'';
+  $('eFields').innerHTML=state.fields.map(fd=>fieldInput('e_',fd,f.customData?.[fd.key]||'')).join('');
+  openModal('editModal');
+}
+async function saveEdit(){
+  const f=state.currentFile;
+  const {data,missing}=readCustomFields('e_');
+  if(missing){toast('「'+missing+'」為必填欄位',1);return}
+  const address=$('eAddr').value.trim();
+  let lat=f.lat,lng=f.lng;
+  if(address&&address!==f.address){
+    const geo=await geocode(address);
+    if(geo){lat=geo.lat;lng=geo.lng}else{lat=null;lng=null;toast('地址無法自動定位,仍會儲存地址文字',1)}
+  }
+  if(!address){lat=null;lng=null}
+  await api('updateFile',{id:f.id,name:$('eName').value.trim(),folderId:$('eFolder').value,
+    categories:[...document.querySelectorAll('#eCats .chip.on')].map(c=>c.dataset.cat),customData:data,
+    address,lat,lng});
+  closeModal('editModal');openDrawer(f.id);refreshViews();toast('已儲存變更');
+}
+
+/* ── 關聯(進階搜尋)─────────────────────────── */
+let relPickId=null;
+function openRelModal(){
+  relPickId=null;
+  $('relSearch').value='';$('relNote').value='';
+  fillSelect($('relFolder'),folderOptions(true));
+  fillSelect($('relCat'),[['','全部分類'],...state.categories.map(c=>[c.id,c.name])]);
+  const types=[...new Set(state.files.map(f=>f.fileType))];
+  fillSelect($('relFType'),[['','全部類型'],...types.map(t=>[t,t.toUpperCase()])]);
+  renderRelPick();openModal('relModal');
+}
+function renderRelPick(){
+  const ts=terms($('relSearch').value);
+  const folderId=$('relFolder').value,cat=$('relCat').value,ftype=$('relFType').value;
+  let list=filesInFolder(folderId).filter(f=>f.id!==state.currentFile.id);
+  if(cat)list=list.filter(f=>(f.categories||[]).includes(cat));
+  if(ftype)list=list.filter(f=>f.fileType===ftype);
+  if(ts.length)list=list.filter(f=>fileMatchesTerms(f,ts,true));
+  $('relCount').textContent='符合 '+list.length+' 筆'+(list.length>20?'(顯示前 20 筆,可再加關鍵字縮小)':'');
+  list=list.slice(0,20);
+  $('relPick').innerHTML=list.map(f=>`<div class="rel-item" style="${relPickId===f.id?'border-color:var(--ink-700);background:var(--ink-100)':''}" onclick="relPickId='${f.id}';renderRelPick()">
+    ${iconHtml(f.fileType)}<div style="flex:1;min-width:0"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ts.length?markTerms(f.name,ts):esc(f.name)}</div>
+    <div class="muted" style="font-size:11px">${esc(folderPath(f.folderId))} · ${fdate(f.uploadTime)} ${tagChips(f.tags)}</div></div>
+    ${relPickId===f.id?'<span class="tag">已選取</span>':''}</div>`).join('')||'<div class="muted">找不到檔案,請放寬條件</div>';
+}
+async function saveRel(){
+  if(!relPickId){toast('請選擇要關聯的檔案',1);return}
+  await api('addRelation',{fileId:state.currentFile.id,relatedFileId:relPickId,relationType:$('relType').value,note:$('relNote').value.trim()});
+  relPickId=null;closeModal('relModal');renderDrawerRels();toast('已建立關聯');
+}
+
+/* ── 系統管理 ─────────────────────────── */
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  document.querySelectorAll('.admin-pane').forEach(p=>p.classList.toggle('show',p.id==='pane-'+tab));
+  renderAdmin();
+}
+function renderAdmin(){
+  const TYPE_NAME={text:'單行文字',textarea:'多行文字',number:'數字',date:'日期',select:'下拉選單'};
+  $('fieldsTable').innerHTML=`<thead><tr><th>欄位名稱</th><th>代碼</th><th>型態</th><th>必填</th><th>列表顯示</th><th>操作</th></tr></thead><tbody>`+
+    state.fields.map(f=>`<tr style="cursor:default">
+      <td style="font-weight:700">${esc(f.label)}</td><td class="mono muted">${esc(f.key)}</td>
+      <td>${TYPE_NAME[f.type]||f.type}${f.type==='select'?`<span class="muted" style="font-size:11.5px">(${esc(f.options)})</span>`:''}</td>
+      <td>${f.required?'<span class="chip">必填</span>':'—'}</td><td>${f.showInList?'✓':'—'}</td>
+      <td class="nowrap"><button class="btn sm ghost" onclick="openFieldModal('${f.id}')">編輯</button>
+      <button class="btn sm ghost" style="color:var(--danger)" onclick="delField('${f.id}')">刪除</button></td></tr>`).join('')+`</tbody>`;
+  $('catsTable').innerHTML=`<thead><tr><th>分類名稱</th><th>代表色</th><th>檔案數</th><th>操作</th></tr></thead><tbody>`+
+    state.categories.map(c=>{const n=state.files.filter(f=>(f.categories||[]).includes(c.id)).length;
+      return `<tr style="cursor:default"><td><span class="chip"><span class="cdot" style="background:${c.color}"></span>${esc(c.name)}</span></td>
+      <td class="mono muted">${c.color}</td><td class="mono">${n}</td>
+      <td class="nowrap"><button class="btn sm ghost" onclick="openCatModal('${c.id}')">編輯</button>
+      <button class="btn sm ghost" style="color:var(--danger)" onclick="delCat('${c.id}')">刪除</button></td></tr>`}).join('')+`</tbody>`;
+  $('foldersTable').innerHTML=`<thead><tr><th>資料夾</th><th>層級</th><th>檔案數</th><th>操作</th></tr></thead><tbody>`+
+    state.folders.filter(f=>!f.parentId).flatMap(f=>[f,...state.folders.filter(k=>k.parentId===f.id)]).map(f=>{
+      const n=state.files.filter(x=>x.folderId===f.id).length;
+      return `<tr style="cursor:default"><td style="font-weight:700">${f.parentId?'<span class="muted">└ </span>':''}${esc(f.name)}</td>
+      <td class="muted">${f.parentId?'子資料夾':'最上層'}</td><td class="mono">${n}</td>
+      <td class="nowrap"><button class="btn sm ghost" onclick="openFolderModal('${f.id}')">編輯</button>
+      <button class="btn sm ghost" style="color:var(--danger)" onclick="delFolder('${f.id}')">刪除</button></td></tr>`}).join('')+`</tbody>`;
+  renderUsersTable();
+  // AI 設定
+  $('aiProvider').value=state.settings.aiProvider||'gemini';
+  $('aiModel').value=state.settings.aiModel||'';
+  renderProviderHelp();
+  $('apiUrl').value=state.apiUrl||'';
+}
+function renderUsersTable(){
+  $('usersTable').innerHTML=`<thead><tr><th>帳號</th><th>顯示名稱</th><th>角色</th><th>操作</th></tr></thead><tbody>`+
+    state.users.map(u=>`<tr style="cursor:default">
+      <td class="mono" style="font-weight:700">${esc(u.username)}</td>
+      <td>${esc(u.displayName||'—')}</td>
+      <td>${u.role==='admin'?'<span class="chip">管理員</span>':'一般使用者'}</td>
+      <td class="nowrap"><button class="btn sm ghost" onclick="openUserModal('${u.id}')">編輯／重設密碼</button>
+      ${u.username!==state.user?.username?`<button class="btn sm ghost" style="color:var(--danger)" onclick="delUser('${u.id}')">刪除</button>`:'<span class="muted" style="font-size:11.5px">(目前登入)</span>'}</td></tr>`).join('')+`</tbody>`;
+}
+function renderProviderHelp(){
+  const p=PROVIDER_INFO[$('aiProvider').value];
+  $('providerHelp').innerHTML='<b>'+p.name+' 需要輸入什麼:</b><br>'+p.help;
+  $('aiKeyState').textContent=(state.settings.aiKeySet&&$('aiProvider').value===state.settings.aiProvider)
+    ?'已儲存金鑰(留空表示不變更)':p.keyHint;
+  $('aiModelHelp').textContent='預設:'+p.defModel;
+  $('aiModel').placeholder=p.defModel;
+}
+async function saveAiSettings(){
+  const provider=$('aiProvider').value, key=$('aiKey').value.trim(), model=$('aiModel').value.trim()||PROVIDER_INFO[provider].defModel;
+  if(!key&&!(state.settings.aiKeySet&&provider===state.settings.aiProvider)){toast('請輸入 API 金鑰',1);return}
+  await api('saveSettings',{aiProvider:provider,aiModel:model,aiKey:key||undefined});
+  state.settings.aiProvider=provider;state.settings.aiModel=model;if(key)state.settings.aiKeySet=true;
+  $('aiKey').value='';renderProviderHelp();
+  toast('AI 設定已儲存'+(state.live?'':'(示範模式僅暫存)'));
+}
+async function testAi(){
+  try{
+    const r=await api('aiChat',{question:'請回覆「連線成功」四個字',folderId:''});
+    toast('AI 回覆:'+String(r.answer).slice(0,40));
+  }catch(e){toast('AI 測試失敗:'+e.message,1)}
+}
+let editingId=null;
+function openFieldModal(id){
+  editingId=id||null;const f=id?state.fields.find(x=>x.id===id):null;
+  $('fieldModalT').textContent=f?'編輯欄位':'新增欄位';
+  $('fLabel').value=f?.label||'';$('fKey').value=f?.key||'';$('fType').value=f?.type||'text';
+  $('fOptions').value=f?.options||'';$('fReq').checked=!!f?.required;$('fList').checked=f?f.showInList:true;
+  $('fOptWrap').style.display=($('fType').value==='select')?'block':'none';
+  openModal('fieldModal');
+}
+async function saveField(){
+  const label=$('fLabel').value.trim();if(!label){toast('請輸入欄位名稱',1);return}
+  await api('saveField',{id:editingId,label,key:$('fKey').value.trim(),type:$('fType').value,
+    options:$('fOptions').value.trim(),required:$('fReq').checked,showInList:$('fList').checked});
+  if(state.live)await loadAll();
+  closeModal('fieldModal');renderAdmin();toast('欄位已儲存');
+}
+async function delField(id){if(!confirm('刪除此欄位?既有檔案中該欄位資料仍保留於 Sheet,但不再顯示。'))return;
+  await api('deleteField',{id});if(state.live)await loadAll();renderAdmin();toast('已刪除欄位')}
+function openCatModal(id){
+  editingId=id||null;const c=id?state.categories.find(x=>x.id===id):null;
+  $('catModalT').textContent=c?'編輯分類':'新增分類';
+  $('cName').value=c?.name||'';$('cColor').value=c?.color||'#1D4E7E';
+  openModal('catModal');
+}
+async function saveCat(){
+  const name=$('cName').value.trim();if(!name){toast('請輸入分類名稱',1);return}
+  await api('saveCategory',{id:editingId,name,color:$('cColor').value});
+  if(state.live)await loadAll();
+  closeModal('catModal');renderAdmin();toast('分類已儲存');
+}
+async function delCat(id){if(!confirm('刪除此分類?已套用此分類的檔案會自動移除該標籤。'))return;
+  await api('deleteCategory',{id});if(state.live)await loadAll();renderAdmin();toast('已刪除分類')}
+function openFolderModal(id){
+  editingId=id||null;const f=id?state.folders.find(x=>x.id===id):null;
+  $('folderModalT').textContent=f?'編輯資料夾':'新增資料夾';
+  $('foName').value=f?.name||'';
+  fillSelect($('foParent'),[['','(最上層)'],...state.folders.filter(x=>!x.parentId&&x.id!==id).map(x=>[x.id,x.name])]);
+  $('foParent').value=f?.parentId||'';
+  openModal('folderModal');
+}
+async function saveFolder(){
+  const name=$('foName').value.trim();if(!name){toast('請輸入資料夾名稱',1);return}
+  await api('saveFolder',{id:editingId,name,parentId:$('foParent').value});
+  if(state.live)await loadAll();
+  closeModal('folderModal');renderAdmin();toast('資料夾已儲存');
+}
+async function delFolder(id){
+  const n=state.files.filter(f=>f.folderId===id).length;
+  if(n>0){toast('此資料夾內還有 '+n+' 個檔案,請先移動或刪除',1);return}
+  if(!confirm('刪除此資料夾(含其子資料夾)?'))return;
+  await api('deleteFolder',{id});if(state.live)await loadAll();renderAdmin();toast('已刪除資料夾');
+}
+/* 帳號 */
+function openUserModal(id){
+  editingId=id||null;const u=id?state.users.find(x=>x.id===id):null;
+  $('userModalT').textContent=u?'編輯帳號':'新增帳號';
+  $('uUsername').value=u?.username||'';$('uDisplay').value=u?.displayName||'';
+  $('uPassword').value='';$('uRole').value=u?.role||'user';
+  openModal('userModal');
+}
+async function saveUser(){
+  const username=$('uUsername').value.trim(),pw=$('uPassword').value,display=$('uDisplay').value.trim();
+  if(!username){toast('請輸入帳號',1);return}
+  if(!editingId&&!pw){toast('新增帳號必須設定密碼',1);return}
+  await api('saveUser',{id:editingId,username,displayName:display,role:$('uRole').value,password:pw||undefined});
+  if(state.live)state.users=await api('listUsers');
+  closeModal('userModal');renderUsersTable();toast('帳號已儲存');
+}
+async function delUser(id){
+  if(!confirm('刪除此帳號?'))return;
+  await api('deleteUser',{id});
+  if(state.live)state.users=await api('listUsers');
+  renderUsersTable();toast('已刪除帳號');
+}
+
+/* ── API 連線 ─────────────────────────── */
+async function testApi(){
+  const url=$('apiUrl').value.trim();if(!url){toast('請先輸入 Web App 網址',1);return}
+  try{
+    const r=await fetch(url+'?action=ping');const j=await r.json();
+    if(j.ok){toast('連線成功!後端版本:'+(j.data?.version||'?'))}else throw new Error(j.error);
+  }catch(e){toast('連線失敗:'+e.message,1)}
+}
+async function connectApi(){
+  const url=$('apiUrl').value.trim();if(!url){toast('請先輸入 Web App 網址',1);return}
+  state.apiUrl=url;state.live=true;
+  try{
+    await loadAll();
+    $('modePill').className='mode-pill live';$('modePill').innerHTML='<span class="dot"></span>已連線正式資料';
+    $('apiState').textContent='已連線 Apps Script,資料即時讀寫 Google Sheets 與 Drive';
+    toast('已載入正式資料。注意:正式模式需以 Users 工作表中的帳密重新登入');
+    refreshViews();
+  }catch(e){state.live=false;toast('載入失敗:'+e.message,1)}
+}
+async function loadAll(){
+  const cfg=await api('getConfig');
+  state.folders=cfg.folders;state.categories=cfg.categories;state.fields=cfg.fields;
+  state.relations=cfg.relations||[];
+  if(cfg.settings)state.settings=cfg.settings;
+  if(cfg.aiUsage)state.aiUsage=cfg.aiUsage;
+  state.files=await api('listFiles');
+  if(state.user?.role==='admin'){try{state.users=await api('listUsers')}catch(e){}}
+}
+function refreshViews(){
+  const active=document.querySelector('.page.show')?.id.replace('page-','');
+  if(active==='dashboard')renderDashboard();
+  if(active==='explorer')renderExplorerAll();
+  if(active==='search'&&state.searchResults)doSearch();
+  if(active==='map')renderMap();
+  if(active==='ai')renderAiPage();
+  if(active==='admin')renderAdmin();
+}
+function afterLogin(){
+  go('dashboard');
+}
+
+/* ── 啟動 ─────────────────────────── */
+(async function init(){
+  drawCaptcha();
+  if(API_URL){
+    state.live=true;state.apiUrl=API_URL;
+    // 正式模式:登入時直接打後端驗證
+  }else{
+    seedDemo();
+  }
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));$('mask').classList.remove('show')}});
+})();
+</script>
+</body>
+</html>
