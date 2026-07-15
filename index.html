@@ -398,6 +398,10 @@ textarea.input{resize:vertical;min-height:70px}
       <div class="crumb" id="pageCrumb">DASHBOARD</div>
     </div>
     <div class="topbar-spacer"></div>
+    <button class="btn" id="syncBtn" title="重新向後端同步資料" onclick="resync()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>
+      重新同步
+    </button>
     <button class="btn primary" onclick="openUpload()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       上傳檔案
@@ -1033,6 +1037,7 @@ function mockApi(action,p){
       settings:{aiProvider:state.settings.aiProvider,aiModel:state.settings.aiModel,aiKeySet:state.settings.aiKeySet},
       aiUsage:state.aiUsage};
     case 'listFiles': return state.files;
+    case 'getFileText':{const f=state.files.find(x=>x.id===p.id);return {id:p.id,textContent:f?.textContent||''}}
     case 'listUsers': return state.users.map(u=>({id:u.id,username:u.username,displayName:u.displayName,role:u.role}));
     case 'saveUser':{
       if(p.id){const u=state.users.find(x=>x.id===p.id);Object.assign(u,{username:p.username,displayName:p.displayName,role:p.role});if(p.password)u.password=p.password;return u}
@@ -1141,13 +1146,15 @@ async function doLogin(){
   if(!u||!pw){errEl.textContent='請輸入帳號與密碼';return}
   if(cap!==capCode){errEl.textContent='驗證碼錯誤,請重新輸入';drawCaptcha();$('loginCap').value='';return}
   try{
+    errEl.style.color='var(--text-3)';errEl.textContent='登入中…';
     const r=await api('login',{username:u,password:pw});
+    errEl.textContent='';errEl.style.color='';
     state.token=r.token;state.user=r.user;
     $('userName').textContent=r.user.displayName||r.user.username;
     $('userAvatar').textContent=(r.user.displayName||r.user.username).slice(0,1);
     $('loginWrap').style.display='none';
-    afterLogin();
-  }catch(e){errEl.textContent=e.message;drawCaptcha();$('loginCap').value=''}
+    await afterLogin();
+  }catch(e){errEl.style.color='';errEl.textContent=e.message;drawCaptcha();$('loginCap').value=''}
 }
 function doLogout(){
   state.token='';state.user=null;state.chat=[];
@@ -1254,7 +1261,7 @@ function filesInFolder(id){
 function fileMatchesTerms(f,ts,withContent){
   if(!ts.length)return true;
   const hay=(f.name+' '+Object.values(f.customData||{}).join(' ')+' '+(f.tags||[]).join(' ')+' '+(f.address||'')
-    +(withContent?' '+(f.textContent||''):'')).toLowerCase();
+    +(withContent?' '+(f.textContent||f.textPreview||''):'')).toLowerCase();
   return ts.every(t=>hay.includes(t));
 }
 function renderExplorer(){
@@ -1293,8 +1300,19 @@ function openDrawer(id){
     ?`<span style="color:var(--ink-700)">📍 ${esc(f.address)}</span> ${f.lat?`<button class="btn sm ghost" onclick="go('map');setTimeout(()=>flyToFile('${f.id}'),300)">在地圖上顯示</button>`:'<span class="muted">(尚未定位)</span>'}`
     :'<span class="muted">未填寫地址,編輯資料可加入</span>';
   renderDrawerRels();
-  $('dText').innerHTML=f.textContent?esc(f.textContent):'<span class="muted">'+(f.fileType==='pdf'?'尚未建立內文索引(正式模式上傳時會自動抽取)':'非 PDF 檔案,無內文索引')+'</span>';
+  const hasT = f.hasText!==undefined ? f.hasText : !!f.textContent;
+  const prev = f.textContent || f.textPreview || '';
+  $('dText').innerHTML = hasT
+    ? esc(prev)+(state.live?' <button class="btn sm ghost" onclick="loadFullText(\''+f.id+'\')">載入完整內文</button>':'')
+    : '<span class="muted">'+(f.fileType==='pdf'?'尚未建立內文索引(可在 Apps Script 執行 reindexAll 補建)':'非 PDF 檔案,無內文索引')+'</span>';
   $('drawerMask').classList.add('show');$('drawer').classList.add('show');
+}
+async function loadFullText(id){
+  $('dText').innerHTML='<span class="muted">載入中…</span>';
+  try{
+    const r=await api('getFileText',{id});
+    $('dText').innerHTML=esc(r.textContent||'(無內容)');
+  }catch(e){$('dText').innerHTML='<span style="color:var(--danger)">載入失敗:'+esc(e.message)+'</span>'}
 }
 function renderDrawerTags(){
   const f=state.currentFile;
@@ -1364,11 +1382,28 @@ function prepSearch(){
   $('sCats').innerHTML=state.categories.map(c=>
     `<span class="chip click" data-cat="${c.id}" onclick="this.classList.toggle('on')"><span class="cdot" style="background:${c.color}"></span>${esc(c.name)}</span>`).join('');
 }
-function doSearch(){
+async function doSearch(){
   const ts=terms($('sKw').value);
   const inContent=$('sContent').checked, folderId=$('sFolder').value;
   const cats=[...document.querySelectorAll('#sCats .chip.on')].map(c=>c.dataset.cat);
   const from=$('sFrom').value, to=$('sTo').value;
+
+  // 正式模式:內文留在後端,交由後端比對(避免把數萬字內文全部下載)
+  if(state.live){
+    $('resultsBox').innerHTML='<div class="empty"><div class="t">搜尋中…</div>正在後端比對檔名、欄位、標籤與 PDF 內文。</div>';
+    try{
+      const rows=await api('searchFiles',{keyword:$('sKw').value.trim(),searchContent:inContent,
+        folderId,categoryIds:cats,dateFrom:from,dateTo:to});
+      state.searchResults=rows.map(r=>({f:r.file,score:r.score,where:r.where,
+        snippet:r.snippet?markTerms(r.snippet,ts):'',ts}));
+    }catch(e){
+      $('resultsBox').innerHTML='<div class="empty"><div class="t">搜尋失敗</div>'+esc(e.message)+'</div>';return;
+    }
+    state.facetSel={type:new Set(),cat:new Set(),folder:new Set(),tag:new Set()};
+    renderFacets();renderResults();return;
+  }
+
+  // 示範模式:資料都在前端,直接比對
   let fs=filesInFolder(folderId);
   if(cats.length)fs=fs.filter(f=>cats.some(c=>(f.categories||[]).includes(c)));
   if(from)fs=fs.filter(f=>f.uploadTime>=from);
@@ -1379,7 +1414,6 @@ function doSearch(){
     const nameStr=f.name.toLowerCase();
     const fieldStr=(Object.values(f.customData||{}).join(' ')+' '+(f.tags||[]).join(' ')+' '+(f.address||'')).toLowerCase();
     const contentStr=(f.textContent||'').toLowerCase();
-    // 每一組關鍵字都必須在(檔名 ∪ 欄位/標籤 ∪ 內文)中出現
     const perTerm=ts.map(t=>({
       t, name:nameStr.includes(t), field:fieldStr.includes(t),
       content:inContent&&contentStr.includes(t)
@@ -1840,16 +1874,36 @@ async function loadAll(){
   state.files=await api('listFiles');
   if(state.user?.role==='admin'){try{state.users=await api('listUsers')}catch(e){}}
 }
+async function resync(){
+  if(!state.live){toast('示範資料模式無需同步');return}
+  const b=$('syncBtn');b.disabled=true;
+  try{ await loadAll(); refreshViews(); toast('已同步最新資料'); }
+  catch(e){ toast('同步失敗:'+e.message,1); }
+  b.disabled=false;
+}
 function refreshViews(){
   const active=document.querySelector('.page.show')?.id.replace('page-','');
   if(active==='dashboard')renderDashboard();
   if(active==='explorer')renderExplorerAll();
-  if(active==='search'&&state.searchResults)doSearch();
+  if(active==='search'&&state.searchResults)doSearch().catch(()=>{});
   if(active==='map')renderMap();
   if(active==='ai')renderAiPage();
   if(active==='admin')renderAdmin();
 }
-function afterLogin(){
+async function afterLogin(){
+  if(state.live){
+    $('modePill').className='mode-pill live';
+    $('modePill').innerHTML='<span class="dot"></span>資料同步中…';
+    try{
+      await loadAll();                       // ← 登入後先向後端同步一次
+      $('modePill').innerHTML='<span class="dot"></span>已連線正式資料';
+      $('apiState').textContent='已連線 Apps Script,資料即時讀寫 Google Sheets 與 Drive';
+    }catch(e){
+      $('modePill').className='mode-pill demo';
+      $('modePill').innerHTML='<span class="dot"></span>同步失敗';
+      toast('資料載入失敗:'+e.message,1);
+    }
+  }
   go('dashboard');
 }
 
