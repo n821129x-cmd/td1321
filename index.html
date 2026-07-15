@@ -264,6 +264,40 @@ textarea.input{resize:vertical;min-height:70px}
 .provider-help{background:#F7F9FC;border:1px solid var(--line-soft);border-radius:8px;padding:12px 14px;font-size:12.5px;margin-bottom:14px;line-height:1.8}
 .provider-help b{color:var(--ink-700)}
 
+/* 批次選取 */
+.sel-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--ink-100);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.sel-bar .cnt{font-weight:900;color:var(--ink-900);font-size:13.5px}
+.sel-bar .spacer{flex:1}
+.chk{width:16px;height:16px;cursor:pointer;accent-color:var(--ink-700)}
+td.chk-cell,th.chk-cell{width:38px;padding-left:14px;padding-right:0}
+tr.picked{background:#EAF2FA}
+tr.picked:hover{background:#E1EDF8}
+
+/* IFC 3D 檢視器 */
+.ifc-modal{width:min(1400px,96vw);height:92vh}
+.ifc-body{flex:1;display:grid;grid-template-columns:1fr 320px;min-height:0}
+@media(max-width:900px){.ifc-body{grid-template-columns:1fr}.ifc-side{display:none}}
+#ifcCanvasWrap{position:relative;background:#EEF2F7;border-radius:0 0 0 14px;overflow:hidden}
+#ifcCanvasWrap canvas{display:block;width:100%;height:100%}
+.ifc-side{border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.ifc-side h4{font-size:12px;letter-spacing:.08em;color:var(--text-3);font-weight:700;padding:12px 14px 6px}
+.ifc-props{flex:1;overflow-y:auto;padding:0 14px 14px}
+.ifc-prop-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px 0;border-bottom:1px dashed var(--line-soft);font-size:12px}
+.ifc-prop-row dt{color:var(--text-3);word-break:break-all}
+.ifc-prop-row dd{color:var(--text);font-weight:600;word-break:break-all}
+.ifc-pset{margin-top:10px}
+.ifc-pset .pset-t{font-size:11.5px;font-weight:700;color:var(--ink-700);background:var(--ink-100);padding:3px 8px;border-radius:6px;display:inline-block;margin-bottom:4px}
+.ifc-status{position:absolute;inset:0;display:grid;place-items:center;background:rgba(238,242,247,.94);z-index:5;text-align:center;padding:20px}
+.ifc-status .t{font-weight:900;color:var(--ink-700);margin-bottom:6px;font-size:15px}
+.ifc-bar{position:absolute;top:10px;left:10px;z-index:4;display:flex;gap:6px;flex-wrap:wrap}
+.ifc-bar .btn{background:rgba(255,255,255,.94);backdrop-filter:blur(4px)}
+.ifc-legend{position:absolute;bottom:10px;left:10px;z-index:4;background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--text-2);font-family:var(--mono)}
+.ifc-tree{max-height:190px;overflow-y:auto;padding:0 14px 8px}
+.ifc-tree .it{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;font-size:12.5px;cursor:pointer}
+.ifc-tree .it:hover{background:var(--ink-100)}
+.ifc-tree .it.on{background:var(--ink-700);color:#fff}
+.ifc-tree .it .n{margin-left:auto;font-family:var(--mono);font-size:10.5px;opacity:.7}
+
 /* 抽屜與彈窗 */
 .drawer-mask,.modal-mask{position:fixed;inset:0;background:rgba(13,43,69,.42);z-index:80;display:none}
 .drawer-mask.show,.modal-mask.show{display:block}
@@ -482,6 +516,15 @@ textarea.input{resize:vertical;min-height:70px}
             <input class="input" style="width:200px;flex:1;min-width:140px" id="expKw" placeholder="快速過濾(可空格分隔多關鍵字)…" oninput="renderExplorer()">
             <span class="count-note" id="expCount"></span>
           </div>
+          <div class="sel-bar" id="selBar" style="display:none">
+            <span class="cnt" id="selCount">已選 0 筆</span>
+            <button class="btn sm" onclick="clearPicked()">清除選取</button>
+            <div class="spacer"></div>
+            <button class="btn primary sm" id="zipBtn" onclick="downloadPicked()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              批次下載(ZIP)
+            </button>
+          </div>
           <div style="overflow-x:auto"><table class="table" id="fileTable"></table></div>
         </div>
       </div>
@@ -528,6 +571,12 @@ textarea.input{resize:vertical;min-height:70px}
                 <option value="asc">上傳時間 舊→新</option>
               </select>
             </div>
+          </div>
+          <div class="sel-bar" id="selBarS" style="display:none">
+            <span class="cnt" id="selCountS">已選 0 筆</span>
+            <button class="btn sm" onclick="clearPicked()">清除選取</button>
+            <div class="spacer"></div>
+            <button class="btn primary sm" onclick="downloadPicked()">批次下載(ZIP)</button>
           </div>
           <div id="resultsBox"><div class="empty"><div class="t">尚未搜尋</div>輸入關鍵字並按「執行搜尋」,可用空格分隔多組關鍵字並搜尋 PDF 內文。</div></div>
         </div>
@@ -714,9 +763,9 @@ textarea.input{resize:vertical;min-height:70px}
     <div id="dText" style="font-size:12.5px;color:var(--text-2);line-height:1.8;background:#F7F9FC;border-radius:8px;padding:12px;max-height:160px;overflow-y:auto"></div>
   </div>
   <div class="drawer-f">
-    <button class="btn primary" onclick="previewCurrent()">
+    <button class="btn primary" id="dPreviewBtn" onclick="previewCurrent()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-      線上檢視
+      <span id="dPreviewLabel">線上檢視</span>
     </button>
     <button class="btn" onclick="downloadCurrent()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
@@ -872,6 +921,33 @@ textarea.input{resize:vertical;min-height:70px}
   </div>
 </div>
 
+<!-- ══════════ IFC 3D 檢視器 ══════════ -->
+<div class="modal ifc-modal" id="ifcModal">
+  <div class="modal-h">
+    <h3 id="ifcTitle">IFC 模型檢視</h3>
+    <span class="mono muted" id="ifcInfo" style="margin-right:10px;font-size:11.5px"></span>
+    <button class="x" onclick="closeIfc()">✕</button>
+  </div>
+  <div class="ifc-body">
+    <div id="ifcCanvasWrap">
+      <div class="ifc-bar">
+        <button class="btn sm" onclick="ifcFit()">🎯 全覽</button>
+        <button class="btn sm" onclick="ifcToggleEdges()">◱ 邊線</button>
+        <button class="btn sm" onclick="ifcIsolate()">◑ 隔離選取</button>
+        <button class="btn sm" onclick="ifcShowAll()">◉ 全部顯示</button>
+      </div>
+      <div class="ifc-legend">滑鼠左鍵旋轉 · 右鍵平移 · 滾輪縮放 · 點構件看屬性</div>
+      <div class="ifc-status" id="ifcStatus"><div><div class="t">準備中…</div><span class="muted" id="ifcStatusSub"></span></div></div>
+    </div>
+    <div class="ifc-side">
+      <h4>樓層 / 空間</h4>
+      <div class="ifc-tree" id="ifcTree"><div class="muted" style="font-size:12px;padding:4px 6px">尚未載入</div></div>
+      <h4 style="border-top:1px solid var(--line-soft)">構件屬性</h4>
+      <div class="ifc-props" id="ifcProps"><div class="muted" style="font-size:12.5px">點選模型中的構件即可查看屬性。</div></div>
+    </div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <script>
@@ -890,7 +966,7 @@ const state = {
   aiUsage:[],           // [{month:'2026-07',tokens:12345}]
   currentFile:null, expFolder:"", searchResults:null,
   facetSel:{type:new Set(),cat:new Set(),folder:new Set(),tag:new Set()},
-  uploadQueue:[], chat:[]
+  uploadQueue:[], chat:[], picked:new Set()
 };
 
 const PROVIDER_INFO = {
@@ -903,7 +979,7 @@ const PROVIDER_INFO = {
 };
 
 /* ── 示範資料 ─────────────────────────── */
-const TYPE_COLOR = {pdf:'#B4432F',dwg:'#1D4E7E',docx:'#3E5FA8',xlsx:'#2E7D5B',jpg:'#B7791F',png:'#B7791F',other:'#5B6C80'};
+const TYPE_COLOR = {pdf:'#B4432F',dwg:'#1D4E7E',docx:'#3E5FA8',xlsx:'#2E7D5B',jpg:'#B7791F',png:'#B7791F',ifc:'#0E7490',rvt:'#7C3AAF',other:'#5B6C80'};
 function seedDemo(){
   state.fields = [
     {id:'f1',key:'caseNo',label:'案件編號',type:'text',required:true,showInList:true,options:''},
@@ -1037,6 +1113,7 @@ function mockApi(action,p){
       settings:{aiProvider:state.settings.aiProvider,aiModel:state.settings.aiModel,aiKeySet:state.settings.aiKeySet},
       aiUsage:state.aiUsage};
     case 'listFiles': return state.files;
+    case 'zipFiles': throw new Error('示範模式沒有實際檔案');
     case 'getFileText':{const f=state.files.find(x=>x.id===p.id);return {id:p.id,textContent:f?.textContent||''}}
     case 'listUsers': return state.users.map(u=>({id:u.id,username:u.username,displayName:u.displayName,role:u.role}));
     case 'saveUser':{
@@ -1091,7 +1168,7 @@ function mockApi(action,p){
 /* ── 小工具 ─────────────────────────── */
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-function extOf(n){const e=(n.split('.').pop()||'').toLowerCase();return ['pdf','dwg','docx','xlsx','jpg','png'].includes(e)?e:(e==='doc'?'docx':e==='xls'?'xlsx':e==='jpeg'?'jpg':'other')}
+function extOf(n){const e=(n.split('.').pop()||'').toLowerCase();return ['pdf','dwg','docx','xlsx','jpg','png','ifc','rvt'].includes(e)?e:(e==='doc'?'docx':e==='xls'?'xlsx':e==='jpeg'?'jpg':'other')}
 function fsize(b){if(!b)return'—';return b>1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB'}
 function fdate(iso){if(!iso)return'—';const d=new Date(iso);return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')}
 function catOf(id){return state.categories.find(c=>c.id===id)}
@@ -1273,9 +1350,12 @@ function renderExplorer(){
   fs=[...fs].sort((a,b)=>sort==='name'?a.name.localeCompare(b.name,'zh-Hant'):sort==='asc'?a.uploadTime.localeCompare(b.uploadTime):b.uploadTime.localeCompare(a.uploadTime));
   $('expCount').textContent=fs.length+' 筆';
   const listFields=state.fields.filter(f=>f.showInList);
-  const head=`<thead><tr><th>檔案</th><th>分類</th><th>標籤</th>${listFields.map(f=>`<th>${esc(f.label)}</th>`).join('')}<th class="nowrap">上傳時間</th><th>操作</th></tr></thead>`;
-  if(!fs.length){$('fileTable').innerHTML=head+`<tbody><tr><td colspan="${5+listFields.length}"><div class="empty"><div class="t">此範圍沒有檔案</div>換個資料夾或條件,或按右上角「上傳檔案」。</div></td></tr></tbody>`;return}
-  $('fileTable').innerHTML=head+`<tbody>`+fs.map(f=>`<tr onclick="openDrawer('${f.id}')">
+  state.pageFileIds=fs.map(f=>f.id);
+  const allOn=fs.length&&fs.every(f=>state.picked.has(f.id));
+  const head=`<thead><tr><th class="chk-cell"><input type="checkbox" class="chk" id="chkAll" ${allOn?'checked':''} onclick="event.stopPropagation();toggleAllPicked(this.checked)" title="全選本頁"></th><th>檔案</th><th>分類</th><th>標籤</th>${listFields.map(f=>`<th>${esc(f.label)}</th>`).join('')}<th class="nowrap">上傳時間</th><th>操作</th></tr></thead>`;
+  if(!fs.length){$('fileTable').innerHTML=head+`<tbody><tr><td colspan="${6+listFields.length}"><div class="empty"><div class="t">此範圍沒有檔案</div>換個資料夾或條件,或按右上角「上傳檔案」。</div></td></tr></tbody>`;renderSelBar();return}
+  $('fileTable').innerHTML=head+`<tbody>`+fs.map(f=>`<tr class="${state.picked.has(f.id)?'picked':''}" onclick="openDrawer('${f.id}')">
+      <td class="chk-cell" onclick="event.stopPropagation()"><input type="checkbox" class="chk" ${state.picked.has(f.id)?'checked':''} onclick="togglePick('${f.id}',this.checked)"></td>
       <td><div class="fname">${iconHtml(f.fileType)}<div><div class="nm">${esc(f.name)}</div><div class="meta">${fsize(f.size)} · ${esc(folderPath(f.folderId))}</div></div></div></td>
       <td>${catChips(f.categories)}</td>
       <td>${tagChips(f.tags)||'<span class="muted">—</span>'}</td>
@@ -1285,6 +1365,55 @@ function renderExplorer(){
         <button class="btn sm ghost" onclick="previewFile('${f.id}')">檢視</button>
         <button class="btn sm ghost" onclick="downloadFile('${f.id}')">下載</button>
       </td></tr>`).join('')+`</tbody>`;
+  renderSelBar();
+}
+
+/* ── 批次選取與下載 ─────────────────────────── */
+function togglePick(id,on){
+  on?state.picked.add(id):state.picked.delete(id);
+  renderSelBar();
+  // 同步列高亮與全選框
+  const active=document.querySelector('.page.show')?.id;
+  if(active==='page-explorer')renderExplorer();
+  else if(active==='page-search')renderResults();
+}
+function toggleAllPicked(on){
+  (state.pageFileIds||[]).forEach(id=>on?state.picked.add(id):state.picked.delete(id));
+  const active=document.querySelector('.page.show')?.id;
+  if(active==='page-explorer')renderExplorer();
+  else if(active==='page-search')renderResults();
+}
+function clearPicked(){
+  state.picked.clear();
+  const active=document.querySelector('.page.show')?.id;
+  if(active==='page-explorer')renderExplorer();
+  else if(active==='page-search')renderResults();
+}
+function renderSelBar(){
+  const n=state.picked.size;
+  const size=[...state.picked].reduce((a,id)=>a+(state.files.find(f=>f.id===id)?.size||0),0);
+  const label=`已選 ${n} 筆・合計 ${fsize(size)}`;
+  [['selBar','selCount'],['selBarS','selCountS']].forEach(([bar,cnt])=>{
+    const b=$(bar);if(!b)return;
+    b.style.display=n?'flex':'none';
+    const c=$(cnt);if(c)c.textContent=label;
+  });
+}
+async function downloadPicked(){
+  const ids=[...state.picked];
+  if(!ids.length){toast('請先勾選檔案',1);return}
+  if(!state.live){toast('示範模式沒有實際檔案,連線正式資料後即可批次下載',1);return}
+  const size=ids.reduce((a,id)=>a+(state.files.find(f=>f.id===id)?.size||0),0);
+  if(size>80*1048576){toast('合計 '+fsize(size)+' 超過單次 80MB 上限,請分批',1);return}
+  const btn=$('zipBtn');if(btn){btn.disabled=true;btn.textContent='打包中…'}
+  toast('後端打包中,檔案較多時需要一點時間…');
+  try{
+    const r=await api('zipFiles',{ids});
+    const a=document.createElement('a');
+    a.href=r.url;a.download=r.name;document.body.appendChild(a);a.click();a.remove();
+    toast(`已打包 ${r.count} 個檔案(${fsize(r.size)}),開始下載`);
+  }catch(e){toast('批次下載失敗:'+e.message,1)}
+  if(btn){btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12l7 7 7-7"/></svg> 批次下載(ZIP)'}
 }
 
 /* ── 檔案詳情抽屜 ─────────────────────────── */
@@ -1305,6 +1434,7 @@ function openDrawer(id){
   $('dText').innerHTML = hasT
     ? esc(prev)+(state.live?' <button class="btn sm ghost" onclick="loadFullText(\''+f.id+'\')">載入完整內文</button>':'')
     : '<span class="muted">'+(f.fileType==='pdf'?'尚未建立內文索引(可在 Apps Script 執行 reindexAll 補建)':'非 PDF 檔案,無內文索引')+'</span>';
+  $('dPreviewLabel').textContent = f.fileType==='ifc' ? '3D 模型檢視' : '線上檢視';
   $('drawerMask').classList.add('show');$('drawer').classList.add('show');
 }
 async function loadFullText(id){
@@ -1357,8 +1487,23 @@ async function deleteCurrent(){
   if(!confirm(`確定刪除「${f.name}」?\n正式模式下 Drive 檔案會移至垃圾桶。`))return;
   await api('deleteFile',{id:f.id});closeDrawer();refreshViews();toast('已刪除檔案');
 }
+/* ── IFC 3D 檢視器橋接(引擎在下方 module 區塊)────────── */
+window.__ifcApiCall=(action,payload)=>api(action,payload);   // 讓 module 能呼叫後端
+window.__toast=(m,e)=>toast(m,e);
+function openIfc(id){
+  const f=state.files.find(x=>x.id===id);if(!f)return;
+  if(!state.live){toast('示範模式沒有實際檔案,請連線正式資料後檢視',1);return}
+  openModal('ifcModal');
+  setTimeout(()=>{ window.openIfcViewer ? window.openIfcViewer(id,f.name)
+    : toast('3D 引擎尚未載入完成,請稍候再試',1); },80);
+}
+function closeIfc(){
+  closeModal('ifcModal');
+  window.disposeIfcViewer && window.disposeIfcViewer();
+}
 function previewFile(id){
   const f=state.files.find(x=>x.id===id);if(!f)return;
+  if(f.fileType==='ifc'){openIfc(id);return}          // IFC → 3D 檢視器
   $('pvTitle').textContent=f.name;
   if(f.driveFileId){
     $('pvOpen').style.display='';$('pvOpen').href=`https://drive.google.com/file/d/${f.driveFileId}/view`;
@@ -1463,8 +1608,9 @@ function renderResults(){
   shown=[...shown].sort((a,b)=>sort==='rel'?b.score-a.score:sort==='asc'?a.f.uploadTime.localeCompare(b.f.uploadTime):b.f.uploadTime.localeCompare(a.f.uploadTime));
   $('sCount').textContent=`共 ${shown.length} 筆${rs.length!==shown.length?`(已從 ${rs.length} 筆篩選)`:''}`;
   if(!shown.length){$('resultsBox').innerHTML=`<div class="empty"><div class="t">沒有符合的結果</div>多關鍵字為「同時符合」,可減少關鍵字或放寬條件。</div>`;return}
+  state.pageFileIds=shown.map(r=>r.f.id);
   $('resultsBox').innerHTML=shown.map(r=>{const f=r.f;const ts=r.ts||[];return `<div class="result" onclick="openDrawer('${f.id}')">
-    <div class="fname">${iconHtml(f.fileType)}<div style="min-width:0"><div class="nm">${ts.length?markTerms(f.name,ts):esc(f.name)}</div>
+    <div class="fname"><input type="checkbox" class="chk" style="margin-right:2px" ${state.picked.has(f.id)?'checked':''} onclick="event.stopPropagation();togglePick('${f.id}',this.checked)">${iconHtml(f.fileType)}<div style="min-width:0"><div class="nm">${ts.length?markTerms(f.name,ts):esc(f.name)}</div>
       <div class="meta">${esc(folderPath(f.folderId))}</div></div>
       <div style="margin-left:auto;display:flex;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
         <button class="btn sm ghost" onclick="previewFile('${f.id}')">檢視</button>
@@ -1474,6 +1620,7 @@ function renderResults(){
       ${f.customData?.caseNo?`<span>案件 ${esc(f.customData.caseNo)}</span>`:''}
       ${r.where?`<span style="color:var(--ok)">符合:${r.where}</span>`:''}</div>
     <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${catChips(f.categories)} ${tagChips(f.tags)}</div></div>`}).join('');
+  renderSelBar();
 }
 
 /* ── 圖資地圖 ─────────────────────────── */
@@ -1919,5 +2066,314 @@ async function afterLogin(){
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));$('mask').classList.remove('show')}});
 })();
 </script>
+
+<!-- ══════════ IFC 3D 檢視器引擎(web-ifc + three.js)══════════ -->
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+/* 以 ES Module 載入 three.js 與 web-ifc(WASM)。
+   本區塊只掛載 window.openIfcViewer 等函式,由主程式呼叫。 */
+let THREE=null, OrbitControls=null, WebIFC=null, ifcApi=null;
+let scene, camera, renderer, controls, raycaster, pointer;
+let modelID=null, meshes=[], edgeLines=[], edgesOn=false;
+let psetIndex={}, storeyIndex=[], selected=null, selMat=null, origMat=new Map();
+let animId=null;
+
+const S=id=>document.getElementById(id);
+function status(t,sub){
+  const el=S('ifcStatus'); if(!el)return;
+  if(t===null){el.style.display='none';return}
+  el.style.display='grid';
+  el.innerHTML='<div><div class="t">'+t+'</div><span class="muted">'+(sub||'')+'</span></div>';
+}
+
+async function boot(){
+  if(THREE) return;
+  status('載入 3D 引擎…','首次開啟需下載元件,請稍候');
+  THREE = await import('three');
+  ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+  WebIFC = await import('https://unpkg.com/web-ifc@0.0.57/web-ifc-api.js');
+  ifcApi = new WebIFC.IfcAPI();
+  ifcApi.SetWasmPath('https://unpkg.com/web-ifc@0.0.57/');
+  await ifcApi.Init();
+}
+
+function initScene(){
+  const wrap=S('ifcCanvasWrap');
+  if(renderer){ renderer.setSize(wrap.clientWidth, wrap.clientHeight); return; }
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0xEEF2F7);
+  camera=new THREE.PerspectiveCamera(55, wrap.clientWidth/wrap.clientHeight, 0.1, 5000);
+  camera.position.set(20,20,20);
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  wrap.appendChild(renderer.domElement);
+  controls=new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping=true;
+  scene.add(new THREE.AmbientLight(0xffffff,.75));
+  const d1=new THREE.DirectionalLight(0xffffff,.7); d1.position.set(30,50,20); scene.add(d1);
+  const d2=new THREE.DirectionalLight(0xffffff,.35); d2.position.set(-30,20,-25); scene.add(d2);
+  scene.add(new THREE.GridHelper(120,60,0xC7D3E0,0xDCE4EC));
+  raycaster=new THREE.Raycaster(); pointer=new THREE.Vector2();
+  selMat=new THREE.MeshLambertMaterial({color:0x1D4E7E,emissive:0x0D2B45,emissiveIntensity:.35});
+  renderer.domElement.addEventListener('click',onPick);
+  new ResizeObserver(()=>{ if(!wrap.clientWidth)return;
+    camera.aspect=wrap.clientWidth/wrap.clientHeight; camera.updateProjectionMatrix();
+    renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  }).observe(wrap);
+  (function loop(){ animId=requestAnimationFrame(loop); controls.update(); renderer.render(scene,camera); })();
+}
+
+function clearModel(){
+  meshes.forEach(m=>{ scene.remove(m); m.geometry.dispose(); });
+  edgeLines.forEach(l=>{ scene.remove(l); l.geometry.dispose(); });
+  meshes=[]; edgeLines=[]; selected=null; origMat.clear();
+  psetIndex={}; storeyIndex=[];
+  if(modelID!==null && ifcApi){ try{ ifcApi.CloseModel(modelID); }catch(e){} modelID=null; }
+}
+
+/* 取得檔案位元組:分段向後端要,組成 Uint8Array */
+async function fetchBytes(fileId, onProgress){
+  const chunks=[]; let offset=0, total=0;
+  for(let guard=0; guard<400; guard++){
+    const r=await window.__ifcApiCall('getFileBytes',{id:fileId, offset});
+    const bin=atob(r.base64);
+    const arr=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    chunks.push(arr);
+    total=r.total; offset=r.next;
+    onProgress && onProgress(offset,total);
+    if(r.done) break;
+  }
+  const out=new Uint8Array(total); let pos=0;
+  chunks.forEach(c=>{ out.set(c,pos); pos+=c.length; });
+  return out;
+}
+
+function geomToBuffer(verts, idx){
+  const g=new THREE.BufferGeometry();
+  const n=verts.length/6;
+  const pos=new Float32Array(n*3), nor=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    pos[i*3]=verts[i*6];   pos[i*3+1]=verts[i*6+1]; pos[i*3+2]=verts[i*6+2];
+    nor[i*3]=verts[i*6+3]; nor[i*3+1]=verts[i*6+4]; nor[i*3+2]=verts[i*6+5];
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setAttribute('normal',   new THREE.BufferAttribute(nor,3));
+  g.setIndex(new THREE.BufferAttribute(new Uint32Array(idx),1));
+  return g;
+}
+
+function buildPsetIndex(){
+  try{
+    const rels=ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCRELDEFINESBYPROPERTIES);
+    for(let i=0;i<rels.size();i++){
+      const rel=ifcApi.GetLine(modelID, rels.get(i));
+      const def=rel.RelatingPropertyDefinition; if(!def) continue;
+      const objs=rel.RelatedObjects||[];
+      objs.forEach(o=>{ (psetIndex[o.value]=psetIndex[o.value]||[]).push(def.value); });
+    }
+  }catch(e){ console.warn('屬性集索引失敗',e); }
+}
+
+function buildStoreyIndex(){
+  try{
+    const st=ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCBUILDINGSTOREY);
+    const rels=ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCRELCONTAINEDINSPATIALSTRUCTURE);
+    const byStorey={};
+    for(let i=0;i<rels.size();i++){
+      const r=ifcApi.GetLine(modelID, rels.get(i));
+      const sid=r.RelatingStructure && r.RelatingStructure.value;
+      if(sid==null) continue;
+      byStorey[sid]=(r.RelatedElements||[]).map(x=>x.value);
+    }
+    for(let i=0;i<st.size();i++){
+      const id=st.get(i); const line=ifcApi.GetLine(modelID,id);
+      storeyIndex.push({ id, name:(line.Name&&line.Name.value)||('樓層'+id), items:byStorey[id]||[] });
+    }
+  }catch(e){ console.warn('樓層索引失敗',e); }
+}
+
+function renderTree(){
+  const box=S('ifcTree');
+  if(!storeyIndex.length){ box.innerHTML='<div class="muted" style="font-size:12px;padding:4px 6px">此模型無樓層資訊</div>'; return; }
+  box.innerHTML='<div class="it on" data-s="all">全部<span class="n">'+meshes.length+'</span></div>'+
+    storeyIndex.map(s=>'<div class="it" data-s="'+s.id+'">'+s.name+'<span class="n">'+s.items.length+'</span></div>').join('');
+  box.querySelectorAll('.it').forEach(el=>el.addEventListener('click',()=>{
+    box.querySelectorAll('.it').forEach(x=>x.classList.remove('on'));
+    el.classList.add('on');
+    const key=el.dataset.s;
+    if(key==='all'){ meshes.forEach(m=>m.visible=true); }
+    else{
+      const s=storeyIndex.find(x=>String(x.id)===key);
+      const set=new Set(s?s.items:[]);
+      meshes.forEach(m=>m.visible=set.has(m.userData.expressID));
+    }
+  }));
+}
+
+function propRows(obj){
+  const skip={expressID:1,type:1,GlobalId:1,OwnerHistory:1,ObjectPlacement:1,Representation:1};
+  let html='';
+  Object.keys(obj||{}).forEach(k=>{
+    if(skip[k]) return;
+    const v=obj[k];
+    let val=null;
+    if(v==null) return;
+    if(typeof v==='object' && 'value' in v) val=v.value;
+    else if(typeof v!=='object') val=v;
+    if(val===null||val===''||val===undefined) return;
+    html+='<div class="ifc-prop-row"><dt>'+k+'</dt><dd>'+String(val)+'</dd></div>';
+  });
+  return html;
+}
+
+function showProps(expressID){
+  const box=S('ifcProps');
+  try{
+    const line=ifcApi.GetLine(modelID, expressID, true);
+    const typeName=(line.constructor && line.constructor.name) || '';
+    let html='<div class="ifc-pset"><span class="pset-t">基本資訊</span>'+
+      '<div class="ifc-prop-row"><dt>ExpressID</dt><dd>'+expressID+'</dd></div>'+
+      (typeName?'<div class="ifc-prop-row"><dt>IFC 類型</dt><dd>'+typeName+'</dd></div>':'')+
+      propRows(line)+'</div>';
+    const psets=psetIndex[expressID]||[];
+    psets.forEach(pid=>{
+      try{
+        const ps=ifcApi.GetLine(modelID, pid, true);
+        const nm=(ps.Name&&ps.Name.value)||'屬性集';
+        let rows='';
+        (ps.HasProperties||[]).forEach(pr=>{
+          const pn=(pr.Name&&pr.Name.value)||'';
+          let pv=pr.NominalValue&&pr.NominalValue.value;
+          if(typeof pv==='boolean') pv=pv?'是':'否';
+          if(pn&&pv!==undefined&&pv!==null&&pv!=='') rows+='<div class="ifc-prop-row"><dt>'+pn+'</dt><dd>'+pv+'</dd></div>';
+        });
+        (ps.Quantities||[]).forEach(q=>{
+          const qn=(q.Name&&q.Name.value)||'';
+          const qv=(q.LengthValue||q.AreaValue||q.VolumeValue||q.CountValue||{}).value;
+          if(qn&&qv!==undefined) rows+='<div class="ifc-prop-row"><dt>'+qn+'</dt><dd>'+qv+'</dd></div>';
+        });
+        if(rows) html+='<div class="ifc-pset"><span class="pset-t">'+nm+'</span>'+rows+'</div>';
+      }catch(e){}
+    });
+    box.innerHTML=html;
+  }catch(e){ box.innerHTML='<div class="muted" style="font-size:12.5px">無法讀取屬性:'+e+'</div>'; }
+}
+
+function onPick(ev){
+  const rect=renderer.domElement.getBoundingClientRect();
+  pointer.x=((ev.clientX-rect.left)/rect.width)*2-1;
+  pointer.y=-((ev.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const hit=raycaster.intersectObjects(meshes.filter(m=>m.visible),false)[0];
+  if(selected){ selected.material=origMat.get(selected)||selected.material; selected=null; }
+  if(!hit){ S('ifcProps').innerHTML='<div class="muted" style="font-size:12.5px">點選模型中的構件即可查看屬性。</div>'; return; }
+  selected=hit.object;
+  if(!origMat.has(selected)) origMat.set(selected, selected.material);
+  selected.material=selMat;
+  showProps(selected.userData.expressID);
+}
+
+window.ifcFit=function(){
+  if(!meshes.length) return;
+  const box=new THREE.Box3();
+  meshes.forEach(m=>{ if(m.visible) box.expandByObject(m); });
+  if(box.isEmpty()) return;
+  const c=box.getCenter(new THREE.Vector3()), sz=box.getSize(new THREE.Vector3());
+  const r=Math.max(sz.x,sz.y,sz.z)||10;
+  controls.target.copy(c);
+  camera.position.set(c.x+r*1.1, c.y+r*0.9, c.z+r*1.1);
+  camera.near=r/500; camera.far=r*50; camera.updateProjectionMatrix();
+  controls.update();
+};
+window.ifcToggleEdges=function(){
+  edgesOn=!edgesOn;
+  if(edgesOn && !edgeLines.length){
+    meshes.forEach(m=>{
+      const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry,30),
+        new THREE.LineBasicMaterial({color:0x5B6C80,transparent:true,opacity:.45}));
+      e.applyMatrix4(m.matrix); e.userData.owner=m; scene.add(e); edgeLines.push(e);
+    });
+  }
+  edgeLines.forEach(e=>e.visible=edgesOn && (!e.userData.owner || e.userData.owner.visible));
+};
+window.ifcIsolate=function(){
+  if(!selected){ window.__toast&&window.__toast('請先點選一個構件',1); return; }
+  meshes.forEach(m=>m.visible=(m===selected));
+  edgeLines.forEach(e=>e.visible=edgesOn&&e.userData.owner===selected);
+};
+window.ifcShowAll=function(){
+  meshes.forEach(m=>m.visible=true);
+  edgeLines.forEach(e=>e.visible=edgesOn);
+  const t=S('ifcTree'); t&&t.querySelectorAll('.it').forEach((x,i)=>x.classList.toggle('on',i===0));
+};
+
+window.openIfcViewer=async function(fileId, fileName){
+  S('ifcTitle').textContent=fileName||'IFC 模型檢視';
+  S('ifcInfo').textContent='';
+  S('ifcProps').innerHTML='<div class="muted" style="font-size:12.5px">點選模型中的構件即可查看屬性。</div>';
+  S('ifcTree').innerHTML='<div class="muted" style="font-size:12px;padding:4px 6px">載入中…</div>';
+  try{
+    await boot();
+    initScene();
+    clearModel();
+    status('下載模型檔…','');
+    const t0=performance.now();
+    const bytes=await fetchBytes(fileId,(cur,total)=>{
+      status('下載模型檔…', Math.round(cur/1048576*10)/10+' / '+Math.round(total/1048576*10)/10+' MB');
+    });
+    status('解析 IFC…','大型模型可能需要數十秒');
+    modelID=ifcApi.OpenModel(bytes);
+    const flat=ifcApi.LoadAllGeometry(modelID);
+    const matCache=new Map();
+    for(let i=0;i<flat.size();i++){
+      const fm=flat.get(i);
+      const geos=fm.geometries;
+      for(let j=0;j<geos.size();j++){
+        const pg=geos.get(j);
+        const g=ifcApi.GetGeometry(modelID, pg.geometryExpressID);
+        const verts=ifcApi.GetVertexArray(g.GetVertexData(), g.GetVertexDataSize());
+        const idx=ifcApi.GetIndexArray(g.GetIndexData(), g.GetIndexDataSize());
+        const bg=geomToBuffer(verts, idx);
+        const c=pg.color;
+        const key=[c.x,c.y,c.z,c.w].join(',');
+        let mat=matCache.get(key);
+        if(!mat){
+          mat=new THREE.MeshLambertMaterial({
+            color:new THREE.Color(c.x,c.y,c.z),
+            transparent:c.w<1, opacity:c.w, side:THREE.DoubleSide
+          });
+          matCache.set(key,mat);
+        }
+        const mesh=new THREE.Mesh(bg,mat);
+        mesh.matrixAutoUpdate=false;
+        mesh.matrix.fromArray(pg.flatTransformation);
+        mesh.userData.expressID=fm.expressID;
+        scene.add(mesh); meshes.push(mesh);
+        g.delete();
+      }
+    }
+    status('建立屬性索引…','');
+    buildPsetIndex(); buildStoreyIndex(); renderTree();
+    window.ifcFit();
+    status(null);
+    S('ifcInfo').textContent=meshes.length+' 個構件 · '+Math.round((performance.now()-t0)/100)/10+' 秒';
+  }catch(e){
+    console.error(e);
+    status('載入失敗', String(e&&e.message||e));
+  }
+};
+
+window.disposeIfcViewer=function(){
+  clearModel();
+};
+</script>
+
 </body>
 </html>
