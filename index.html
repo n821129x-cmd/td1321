@@ -377,7 +377,7 @@ tr.picked:hover{background:#E1EDF8}
     </div>
     <div class="login-err" id="loginErr"></div>
     <button class="btn primary" onclick="doLogin()">登入</button>
-    <div class="login-foot">v2.0.0 · 圖資倉儲管理系統</div>
+    <div class="login-foot">v2.3.0 · 圖資倉儲管理系統</div>
   </div>
 </div>
 
@@ -419,7 +419,7 @@ tr.picked:hover{background:#E1EDF8}
   </nav>
   <div class="side-foot">
     <div class="side-user"><span class="avatar" id="userAvatar">管</span><span id="userName">—</span><button onclick="doLogout()">登出</button></div>
-    v2.0.0
+    v2.3.0 · IFC檢視/批次下載
     <div><span id="modePill" class="mode-pill demo"><span class="dot"></span>示範資料模式</span></div>
   </div>
 </aside>
@@ -1368,6 +1368,9 @@ function renderExplorer(){
   renderSelBar();
 }
 
+/* 是否為 IFC:同時看 fileType 欄與副檔名,舊資料 fileType 可能是 other */
+function isIfc(f){ return f && (f.fileType==='ifc' || /\.ifc$/i.test(f.name||'')); }
+
 /* ── 批次選取與下載 ─────────────────────────── */
 function togglePick(id,on){
   on?state.picked.add(id):state.picked.delete(id);
@@ -1434,7 +1437,7 @@ function openDrawer(id){
   $('dText').innerHTML = hasT
     ? esc(prev)+(state.live?' <button class="btn sm ghost" onclick="loadFullText(\''+f.id+'\')">載入完整內文</button>':'')
     : '<span class="muted">'+(f.fileType==='pdf'?'尚未建立內文索引(可在 Apps Script 執行 reindexAll 補建)':'非 PDF 檔案,無內文索引')+'</span>';
-  $('dPreviewLabel').textContent = f.fileType==='ifc' ? '3D 模型檢視' : '線上檢視';
+  $('dPreviewLabel').textContent = isIfc(f) ? '3D 模型檢視' : '線上檢視';
   $('drawerMask').classList.add('show');$('drawer').classList.add('show');
 }
 async function loadFullText(id){
@@ -1494,8 +1497,12 @@ function openIfc(id){
   const f=state.files.find(x=>x.id===id);if(!f)return;
   if(!state.live){toast('示範模式沒有實際檔案,請連線正式資料後檢視',1);return}
   openModal('ifcModal');
-  setTimeout(()=>{ window.openIfcViewer ? window.openIfcViewer(id,f.name)
-    : toast('3D 引擎尚未載入完成,請稍候再試',1); },80);
+  let tries=0;
+  (function wait(){
+    if(window.openIfcViewer){ window.openIfcViewer(id,f.name); return; }
+    if(++tries>50){ toast('3D 引擎載入失敗,請檢查網路或瀏覽器主控台(F12)',1); return; }
+    setTimeout(wait,100);
+  })();
 }
 function closeIfc(){
   closeModal('ifcModal');
@@ -1503,7 +1510,7 @@ function closeIfc(){
 }
 function previewFile(id){
   const f=state.files.find(x=>x.id===id);if(!f)return;
-  if(f.fileType==='ifc'){openIfc(id);return}          // IFC → 3D 檢視器
+  if(isIfc(f)){openIfc(id);return}          // IFC → 3D 檢視器
   $('pvTitle').textContent=f.name;
   if(f.driveFileId){
     $('pvOpen').style.display='';$('pvOpen').href=`https://drive.google.com/file/d/${f.driveFileId}/view`;
