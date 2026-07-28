@@ -11,14 +11,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{
-  --bg:#EDF1F6; --surface:#FFFFFF; --line:#D7DEE8; --line-soft:#E7ECF3;
-  --ink-900:#0D2B45; --ink-800:#123A5C; --ink-700:#1D4E7E; --ink-500:#39699C; --ink-100:#E4EDF6;
-  --text:#1B2836; --text-2:#5B6C80; --text-3:#8B99AB;
-  --ok:#2E7D5B; --warn:#B7791F; --danger:#B4432F;
-  --chip:#E6EDF5;
-  --r:10px; --shadow:0 1px 2px rgba(13,43,69,.06),0 8px 24px rgba(13,43,69,.08);
+  /* 亮色留白 + 紫色系主色(照參考圖)*/
+  --bg:#F4F5FB; --surface:#FFFFFF; --line:#ECEDF5; --line-soft:#F2F3F9;
+  --ink-900:#5B4BDB; --ink-800:#6C5CE7; --ink-700:#7A6CF0; --ink-500:#9B8FF5; --ink-100:#EEEBFE;
+  --text:#2A2540; --text-2:#726C88; --text-3:#A5A0BC;
+  --ok:#12B886; --warn:#F0A020; --danger:#F0506E;
+  --chip:#F0EEFB;
+  --r:18px; --shadow:0 1px 2px rgba(91,75,219,.04),0 10px 30px rgba(91,75,219,.08);
   --mono:'JetBrains Mono',ui-monospace,monospace;
-  --grid-line:rgba(255,255,255,.05);
+  --grid-line:rgba(255,255,255,0);
+  /* 漸層色票(卡片用)*/
+  --grad-purple:linear-gradient(135deg,#7A6CF0,#5B4BDB);
+  --grad-blue:linear-gradient(135deg,#5B8DEF,#6C5CE7);
+  --grad-pink:linear-gradient(135deg,#F0699E,#F5842E);
+  --grad-teal:linear-gradient(135deg,#0FB8C4,#3B82F6);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -255,6 +261,22 @@ textarea.input{resize:vertical;min-height:70px}
 .ai-hello .big{font-size:16px;font-weight:900;color:var(--ink-700);margin-bottom:6px}
 .provider-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:99px;background:var(--ink-100);color:var(--ink-700);font-weight:700;font-size:12px}
 
+/* AI 對話紀錄 */
+.chat-day{align-self:center;font-size:11px;color:var(--text-3);font-family:var(--mono);background:var(--ink-100);padding:2px 12px;border-radius:99px;margin:4px 0}
+.msg .mtime{font-size:10px;opacity:.6;margin-top:5px;font-family:var(--mono)}
+.msg.user .mtime{text-align:right}
+.chat-load{align-self:center;color:var(--text-3);font-size:12.5px;padding:10px}
+
+/* AI 出處卡片 */
+.src-card{display:flex;align-items:center;gap:9px;padding:7px 10px;border:1px solid var(--line-soft);border-radius:8px;margin-top:6px;background:#FFF}
+.src-card:hover{border-color:var(--ink-500)}
+.src-card .sn{flex:1;min-width:0;font-weight:700;font-size:12.5px;color:var(--ink-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.src-card .sn:hover{text-decoration:underline}
+.src-card .sm{font-size:11px;color:var(--text-3);font-family:var(--mono)}
+.src-acts{display:flex;gap:4px;flex-shrink:0}
+.src-acts .btn{padding:3px 8px;font-size:11.5px}
+.msg.ai .src-t{margin-top:9px;padding-top:8px;border-top:1px dashed var(--line);font-size:11.5px;color:var(--text-3);font-weight:700}
+
 /* 管理頁 */
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
 .tab{padding:10px 16px;border:none;background:transparent;font-size:14px;font-weight:700;color:var(--text-2);border-bottom:2px solid transparent;margin-bottom:-1px}
@@ -263,6 +285,29 @@ textarea.input{resize:vertical;min-height:70px}
 .admin-pane.show{display:block}
 .provider-help{background:#F7F9FC;border:1px solid var(--line-soft);border-radius:8px;padding:12px 14px;font-size:12.5px;margin-bottom:14px;line-height:1.8}
 .provider-help b{color:var(--ink-700)}
+
+/* 縮圖 */
+.thumb{border-radius:7px;overflow:hidden;flex-shrink:0;background:#F1F4F8;display:grid;place-items:center;border:1px solid var(--line-soft)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb.loading{background:linear-gradient(90deg,#F1F4F8 25%,#E7ECF3 50%,#F1F4F8 75%);background-size:200% 100%;animation:shim 1.2s infinite}
+@keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* 縮圖牆 */
+.grid-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;padding:16px}
+.gcard{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#FFF;cursor:pointer;transition:border-color .12s,transform .12s}
+.gcard:hover{border-color:var(--ink-500);transform:translateY(-2px)}
+.gcard.picked{border-color:var(--ink-700);box-shadow:0 0 0 2px var(--ink-100)}
+.gcard .gt{position:relative;height:150px;background:#F1F4F8;display:grid;place-items:center;overflow:hidden}
+.gcard .gt img{width:100%;height:100%;object-fit:cover}
+.gcard .gchk{position:absolute;top:7px;left:7px;z-index:2;background:rgba(255,255,255,.92);border-radius:5px;padding:2px 3px 0;line-height:1}
+.gcard .gtype{position:absolute;top:7px;right:7px;z-index:2;font-family:var(--mono);font-size:9.5px;font-weight:600;color:#FFF;padding:2px 6px;border-radius:5px}
+.gcard .gb{padding:9px 11px 11px}
+.gcard .gn{font-weight:700;font-size:12.5px;color:var(--ink-900);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:36px}
+.gcard .gm{font-size:10.5px;color:var(--text-3);font-family:var(--mono);margin-top:4px}
+.gcard .ga{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.view-tabs{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.view-tabs button{border:none;background:#FFF;padding:6px 11px;font-size:12.5px;font-weight:700;color:var(--text-2)}
+.view-tabs button.on{background:var(--ink-700);color:#FFF}
 
 /* 批次選取 */
 .sel-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--ink-100);border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -346,6 +391,169 @@ tr.picked:hover{background:#E1EDF8}
 .toast{background:var(--ink-900);color:#FFF;padding:10px 20px;border-radius:99px;font-size:13.5px;font-weight:700;box-shadow:var(--shadow);animation:fadein .2s ease}
 .toast.err{background:var(--danger)}
 @media(max-width:840px){.sidebar{display:none}.content{padding:18px 14px 60px}.topbar{padding:12px 14px}}
+
+/* ═══════════════════ 亮色圓潤主題覆蓋(v2.7)═══════════════════ */
+
+/* 側邊欄:白底、紫色選中 */
+.sidebar{
+  background:var(--surface)!important;
+  background-image:none!important;
+  border-right:1px solid var(--line);
+  color:var(--text-2);
+}
+.brand{border-bottom:1px solid var(--line-soft)}
+.brand h1{color:var(--ink-700)!important}
+.brand-mark img{box-shadow:0 4px 14px rgba(91,75,219,.25)}
+.nav-label{color:var(--text-3)}
+.nav-item{color:var(--text-2)}
+.nav-item svg{opacity:.7}
+.nav-item:hover{background:var(--ink-100);color:var(--ink-700)}
+.nav-item.active{background:var(--grad-purple);color:#FFF;box-shadow:0 6px 16px rgba(91,75,219,.28)}
+.nav-item.active svg{opacity:1}
+.side-foot{border-top:1px solid var(--line-soft);color:var(--text-3)}
+.side-user{color:var(--text-2)}
+.side-user .avatar{background:var(--grad-purple)}
+.side-user button{border-color:var(--line);color:var(--text-2)}
+.side-user button:hover{border-color:var(--ink-500);color:var(--ink-700)}
+.mode-pill.demo{background:#FFF4E0;color:#C77E1A}
+.mode-pill.live{background:#DEF7EE;color:#0E9E72}
+
+/* 主區背景 */
+.main{background:var(--bg)}
+.topbar{background:var(--surface);border-bottom:1px solid var(--line)}
+.topbar h2{color:var(--ink-900)}
+
+/* 卡片:更圓、更柔的陰影 */
+.card{border-radius:var(--r);border:1px solid var(--line);box-shadow:var(--shadow)}
+.card-h{border-bottom:1px solid var(--line-soft)}
+.card-h h3{color:var(--text)}
+
+/* 按鈕:圓潤、主色改漸層 */
+.btn{border-radius:12px;border:1px solid var(--line)}
+.btn:hover{border-color:var(--ink-500);color:var(--ink-700)}
+.btn.primary{background:var(--grad-purple);border:none;box-shadow:0 6px 16px rgba(91,75,219,.25)}
+.btn.primary:hover{background:var(--grad-purple);filter:brightness(1.05)}
+.btn.sm{border-radius:9px}
+.btn.ghost{border-color:transparent}
+
+/* 輸入框圓潤 */
+.input,select.input,textarea.input{border-radius:12px;border-color:var(--line);background:#FBFBFE}
+.input:focus{border-color:var(--ink-500);background:#FFF}
+
+/* 首頁 hero:紫色漸層、移除方格 */
+.hero{background:var(--grad-purple)!important}
+.hero::before{background-image:none!important}
+.hero .eyebrow{color:#D9D2FF}
+.searchbar .btn{background:#FFF;color:var(--ink-700)}
+.searchbar .btn:hover{filter:brightness(.97)}
+.hero .quick{color:#E5E0FF}
+
+/* 統計卡:圓潤 + 頂部彩色點綴 */
+.stat{border-radius:var(--r);border:1px solid var(--line);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--grad-purple)}
+.stat:nth-child(2)::before{background:var(--grad-blue)}
+.stat:nth-child(3)::before{background:var(--grad-teal)}
+.stat:nth-child(4)::before{background:var(--grad-pink)}
+.stat:nth-child(5)::before{background:var(--grad-purple)}
+.stat .k svg{color:var(--ink-700)}
+.stat .v{color:var(--ink-900)}
+
+/* chip / 標籤圓潤 */
+.chip{border-radius:99px;background:var(--chip);color:var(--ink-700)}
+.chip.on{background:var(--grad-purple);color:#FFF}
+.tagchip{border-radius:99px;background:#FFF0F5;color:#D6437A;border-color:#FBD9E7}
+
+/* 表格:圓潤表頭 */
+.table th{background:#FAFAFE;color:var(--text-3)}
+.table tbody tr:hover{background:#FAF9FF}
+tr.picked{background:var(--ink-100)}
+tr.picked:hover{background:var(--ink-100)}
+
+/* 樹狀資料夾 */
+.tree-item:hover{background:var(--ink-100)}
+.tree-item.active{background:var(--grad-purple);color:#FFF}
+.tree-item svg{color:var(--warn)}
+.tree-item.active svg{color:#FFF}
+
+/* 檔案圖示、縮圖圓潤 */
+.ficon{border-radius:11px}
+.thumb{border-radius:11px}
+
+/* 分頁 tab 選中色 */
+.tab.active{color:var(--ink-700);border-color:var(--ink-700)}
+.view-tabs button.on{background:var(--grad-purple)}
+
+/* 登入頁:紫色漸層封面 */
+.login-wrap{background:var(--grad-purple)!important}
+.login-wrap::before{background-image:none!important}
+.login-cover .tag{color:#D9D2FF}
+.login-cover p{color:#EAE6FF}
+.login-cover .feat div{color:#EAE6FF}
+.login-panel h2{color:var(--ink-900)}
+
+/* 抽屜、彈窗圓潤 */
+.drawer{border-radius:22px 0 0 22px}
+.modal{border-radius:22px}
+.rel-item{border-radius:12px}
+.rel-item .tag{background:var(--ink-100);color:var(--ink-700)}
+
+/* AI 聊天泡泡 */
+.msg.user{background:var(--grad-purple);border-bottom-right-radius:6px}
+.msg.ai{background:#F7F6FD;border-color:var(--line-soft)}
+.provider-badge{background:var(--ink-100);color:var(--ink-700)}
+
+/* 卷軸細緻化 */
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-thumb{background:#DAD7EC;border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+*::-webkit-scrollbar-thumb:hover{background:#C4BFE4;background-clip:padding-box}
+*::-webkit-scrollbar-track{background:transparent}
+
+/* 縮圖牆卡片圓潤 */
+.gcard{border-radius:16px}
+.gcard.picked{box-shadow:0 0 0 2px var(--ink-500)}
+
+/* 搜尋結果 hover */
+.result:hover{background:#FAF9FF}
+.map-file:hover{background:#FAF9FF}
+
+
+/* 側欄 logo 區膠囊感 */
+.brand-mark img{border-radius:14px}
+.side-user .avatar{border-radius:10px}
+
+/* 圖表卡片標題點綴條 */
+.chart-grid .card .card-h,.card .card-h{border-radius:0}
+
+/* Chart.js 容器留白 */
+.chart-wrap{padding:4px}
+
+/* dropzone 圓潤紫 */
+.dropzone{border-radius:16px;border-color:var(--line);background:#FBFBFE}
+.dropzone.on{border-color:var(--ink-500);background:var(--ink-100)}
+.dropzone .big{color:var(--ink-700)}
+
+/* toast 圓潤紫 */
+.toast{background:var(--ink-900);border-radius:99px}
+
+/* 檔案名稱 hover 主色 */
+.fname .nm{color:var(--text)}
+
+/* 頂部 crumb 顏色 */
+.topbar .crumb{color:var(--text-3)}
+
+/* stat 卡 hover 微浮 */
+.stat{transition:transform .12s,box-shadow .12s}
+.stat:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(91,75,219,.13)}
+
+/* 卡片 hover 微浮(首頁圖表等)*/
+.card{transition:box-shadow .15s}
+
+/* AI 出處卡片圓潤 */
+.src-card{border-radius:12px}
+
+/* 登入輸入框 */
+.login-panel .input{background:#FBFBFE}
+
 </style>
 </head>
 <body>
@@ -377,7 +585,7 @@ tr.picked:hover{background:#E1EDF8}
     </div>
     <div class="login-err" id="loginErr"></div>
     <button class="btn primary" onclick="doLogin()">登入</button>
-    <div class="login-foot">v2.3.0 · 圖資倉儲管理系統</div>
+    <div class="login-foot">v2.7.0 · 圖資倉儲管理系統</div>
   </div>
 </div>
 
@@ -419,7 +627,7 @@ tr.picked:hover{background:#E1EDF8}
   </nav>
   <div class="side-foot">
     <div class="side-user"><span class="avatar" id="userAvatar">管</span><span id="userName">—</span><button onclick="doLogout()">登出</button></div>
-    v2.3.0 · IFC檢視/批次下載
+    v2.7.0 · 亮色主題
     <div><span id="modePill" class="mode-pill demo"><span class="dot"></span>示範資料模式</span></div>
   </div>
 </aside>
@@ -514,6 +722,10 @@ tr.picked:hover{background:#E1EDF8}
             </select>
             <div class="sep"></div>
             <input class="input" style="width:200px;flex:1;min-width:140px" id="expKw" placeholder="快速過濾(可空格分隔多關鍵字)…" oninput="renderExplorer()">
+            <div class="view-tabs">
+              <button id="vwList" class="on" onclick="setView('list')" title="列表檢視">☰ 列表</button>
+              <button id="vwGrid" onclick="setView('grid')" title="縮圖牆">▦ 縮圖</button>
+            </div>
             <span class="count-note" id="expCount"></span>
           </div>
           <div class="sel-bar" id="selBar" style="display:none">
@@ -525,7 +737,8 @@ tr.picked:hover{background:#E1EDF8}
               批次下載(ZIP)
             </button>
           </div>
-          <div style="overflow-x:auto"><table class="table" id="fileTable"></table></div>
+          <div style="overflow-x:auto" id="listWrap"><table class="table" id="fileTable"></table></div>
+          <div id="gridWrap" style="display:none"></div>
         </div>
       </div>
     </section>
@@ -966,7 +1179,7 @@ const state = {
   aiUsage:[],           // [{month:'2026-07',tokens:12345}]
   currentFile:null, expFolder:"", searchResults:null,
   facetSel:{type:new Set(),cat:new Set(),folder:new Set(),tag:new Set()},
-  uploadQueue:[], chat:[], picked:new Set()
+  uploadQueue:[], chat:[], picked:new Set(), viewMode:'list', chatLoaded:false
 };
 
 const PROVIDER_INFO = {
@@ -1114,6 +1327,8 @@ function mockApi(action,p){
       aiUsage:state.aiUsage};
     case 'listFiles': return state.files;
     case 'zipFiles': throw new Error('示範模式沒有實際檔案');
+    case 'listChats': return state.chat||[];
+    case 'clearChats': state.chat=[]; return 0;
     case 'getFileText':{const f=state.files.find(x=>x.id===p.id);return {id:p.id,textContent:f?.textContent||''}}
     case 'listUsers': return state.users.map(u=>({id:u.id,username:u.username,displayName:u.displayName,role:u.role}));
     case 'saveUser':{
@@ -1131,7 +1346,7 @@ function mockApi(action,p){
       state.aiUsage[state.aiUsage.length-1].tokens+=usage.inputTokens+usage.outputTokens;
       return {answer:'【示範模式回覆】我目前使用內建假資料。連上正式 API 並在「系統管理 → AI 設定」填入金鑰後,我會實際閱讀「'+
         (p.folderId?(folderOf(p.folderId)?.name||''):'全部檔案')+'」範圍內 '+withText.length+' 份已建立內文索引的 PDF,並根據內容回答你的問題、附上出處檔名。\n\n你剛才的問題是:「'+p.question+'」',
-        sources:withText.slice(0,3).map(f=>f.name), usage, provider:state.settings.aiProvider, model:state.settings.aiModel};
+        sources:withText.slice(0,3).map(f=>({id:f.id,name:f.name,fileType:f.fileType})), usage, provider:state.settings.aiProvider, model:state.settings.aiModel};
     }
     case 'uploadFile':{
       const f={id:uid('F'),name:p.name,fileType:extOf(p.name),folderId:p.folderId,categories:p.categories,
@@ -1234,7 +1449,7 @@ async function doLogin(){
   }catch(e){errEl.style.color='';errEl.textContent=e.message;drawCaptcha();$('loginCap').value=''}
 }
 function doLogout(){
-  state.token='';state.user=null;state.chat=[];
+  state.token='';state.user=null;state.chat=[];state.chatLoaded=false;$('aiMsgs').innerHTML=AI_HELLO;
   $('loginWrap').style.display='flex';
   $('loginPwd').value='';$('loginCap').value='';drawCaptcha();
 }
@@ -1250,7 +1465,7 @@ function go(page){
   if(page==='explorer')renderExplorerAll();
   if(page==='search')prepSearch();
   if(page==='map')renderMapPage();
-  if(page==='ai')renderAiPage();
+  if(page==='ai')renderAiPage().catch(()=>{});
   if(page==='admin')renderAdmin();
   window.scrollTo(0,0);
 }
@@ -1295,7 +1510,7 @@ function renderDashboard(){
   const recent=[...fs].sort((a,b)=>b.uploadTime.localeCompare(a.uploadTime)).slice(0,8);
   $('recentTable').innerHTML=`<thead><tr><th>檔案</th><th>分類</th><th>標籤</th><th>案件編號</th><th>資料夾</th><th class="nowrap">上傳時間</th></tr></thead><tbody>`+
     recent.map(f=>`<tr onclick="openDrawer('${f.id}')">
-      <td><div class="fname">${iconHtml(f.fileType)}<div><div class="nm">${esc(f.name)}</div><div class="meta">${fsize(f.size)} · ${esc(f.uploader)}</div></div></div></td>
+      <td><div class="fname">${thumbHtml(f)}<div><div class="nm">${esc(f.name)}</div><div class="meta">${fsize(f.size)} · ${esc(f.uploader)}</div></div></div></td>
       <td>${catChips(f.categories)}</td>
       <td>${tagChips(f.tags)||'<span class="muted">—</span>'}</td>
       <td class="mono">${esc(f.customData?.caseNo||'—')}</td>
@@ -1349,6 +1564,8 @@ function renderExplorer(){
   if(ts.length)fs=fs.filter(f=>fileMatchesTerms(f,ts,false));
   fs=[...fs].sort((a,b)=>sort==='name'?a.name.localeCompare(b.name,'zh-Hant'):sort==='asc'?a.uploadTime.localeCompare(b.uploadTime):b.uploadTime.localeCompare(a.uploadTime));
   $('expCount').textContent=fs.length+' 筆';
+  state.pageFileIds=fs.map(f=>f.id);
+  if(state.viewMode==='grid'){ renderGrid(fs); renderSelBar(); return; }
   const listFields=state.fields.filter(f=>f.showInList);
   state.pageFileIds=fs.map(f=>f.id);
   const allOn=fs.length&&fs.every(f=>state.picked.has(f.id));
@@ -1356,7 +1573,7 @@ function renderExplorer(){
   if(!fs.length){$('fileTable').innerHTML=head+`<tbody><tr><td colspan="${6+listFields.length}"><div class="empty"><div class="t">此範圍沒有檔案</div>換個資料夾或條件,或按右上角「上傳檔案」。</div></td></tr></tbody>`;renderSelBar();return}
   $('fileTable').innerHTML=head+`<tbody>`+fs.map(f=>`<tr class="${state.picked.has(f.id)?'picked':''}" onclick="openDrawer('${f.id}')">
       <td class="chk-cell" onclick="event.stopPropagation()"><input type="checkbox" class="chk" ${state.picked.has(f.id)?'checked':''} onclick="togglePick('${f.id}',this.checked)"></td>
-      <td><div class="fname">${iconHtml(f.fileType)}<div><div class="nm">${esc(f.name)}</div><div class="meta">${fsize(f.size)} · ${esc(folderPath(f.folderId))}</div></div></div></td>
+      <td><div class="fname">${thumbHtml(f)}<div><div class="nm">${esc(f.name)}</div><div class="meta">${fsize(f.size)} · ${esc(folderPath(f.folderId))}</div></div></div></td>
       <td>${catChips(f.categories)}</td>
       <td>${tagChips(f.tags)||'<span class="muted">—</span>'}</td>
       ${listFields.map(fd=>`<td class="mono">${esc(f.customData?.[fd.key]||'—')}</td>`).join('')}
@@ -1366,6 +1583,28 @@ function renderExplorer(){
         <button class="btn sm ghost" onclick="downloadFile('${f.id}')">下載</button>
       </td></tr>`).join('')+`</tbody>`;
   renderSelBar();
+}
+
+/* ── 縮圖 ─────────────────────────
+   Drive 對「知道連結者可檢視」的檔案提供免費縮圖服務:
+   https://drive.google.com/thumbnail?id=檔案ID&sz=w400
+   PDF 取第一頁、圖片取本身、Office 檔取首頁;DWG/IFC 等無縮圖則退回色塊圖示。 */
+const NO_THUMB=['ifc','rvt','dwg','other'];
+function thumbUrl(f,w){ return f.driveFileId?`https://drive.google.com/thumbnail?id=${f.driveFileId}&sz=w${w||400}`:null }
+function thumbFail(img,type){
+  const box=img.parentElement;if(!box)return;
+  box.classList.remove('loading');
+  box.innerHTML=`<div class="ficon" style="background:${TYPE_COLOR[type]||TYPE_COLOR.other};width:100%;height:100%;border-radius:0">${(type||'?').toUpperCase().slice(0,4)}</div>`;
+}
+/* 列表用小縮圖:有縮圖就顯示,失敗自動退回圖示 */
+function thumbHtml(f,px){
+  const t=f.fileType||extOf(f.name);
+  if(!f.driveFileId||NO_THUMB.includes(t))return iconHtml(t);
+  px=px||34;
+  return `<div class="thumb loading" style="width:${px}px;height:${px}px">
+    <img src="${thumbUrl(f,120)}" alt="" loading="lazy"
+      onload="this.parentElement.classList.remove('loading')"
+      onerror="thumbFail(this,'${t}')"></div>`;
 }
 
 /* 是否為 IFC:同時看 fileType 欄與副檔名,舊資料 fileType 可能是 other */
@@ -1417,6 +1656,45 @@ async function downloadPicked(){
     toast(`已打包 ${r.count} 個檔案(${fsize(r.size)}),開始下載`);
   }catch(e){toast('批次下載失敗:'+e.message,1)}
   if(btn){btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12l7 7 7-7"/></svg> 批次下載(ZIP)'}
+}
+
+/* ── 檢視模式:列表 / 縮圖牆 ─────────────────────────── */
+function setView(m){
+  state.viewMode=m;
+  $('vwList').classList.toggle('on',m==='list');
+  $('vwGrid').classList.toggle('on',m==='grid');
+  $('listWrap').style.display=m==='list'?'':'none';
+  $('gridWrap').style.display=m==='grid'?'':'none';
+  renderExplorer();
+}
+function renderGrid(fs){
+  if(!fs.length){
+    $('gridWrap').innerHTML='<div class="empty"><div class="t">此範圍沒有檔案</div>換個資料夾或條件,或按右上角「上傳檔案」。</div>';
+    return;
+  }
+  $('gridWrap').innerHTML='<div class="grid-wrap">'+fs.map(f=>{
+    const t=f.fileType||extOf(f.name);
+    const canThumb=f.driveFileId&&!NO_THUMB.includes(t);
+    const pic=canThumb
+      ? `<div class="thumb loading" style="width:100%;height:100%;border:none;border-radius:0">
+           <img src="${thumbUrl(f,400)}" alt="" loading="lazy"
+             onload="this.parentElement.classList.remove('loading')"
+             onerror="thumbFail(this,'${t}')"></div>`
+      : `<div class="ficon" style="background:${TYPE_COLOR[t]||TYPE_COLOR.other};width:64px;height:64px;font-size:13px">${t.toUpperCase().slice(0,4)}</div>`;
+    return `<div class="gcard ${state.picked.has(f.id)?'picked':''}" onclick="openDrawer('${f.id}')">
+      <div class="gt">
+        <span class="gchk" onclick="event.stopPropagation()">
+          <input type="checkbox" class="chk" ${state.picked.has(f.id)?'checked':''} onclick="togglePick('${f.id}',this.checked)">
+        </span>
+        <span class="gtype" style="background:${TYPE_COLOR[t]||TYPE_COLOR.other}">${t.toUpperCase()}</span>
+        ${pic}
+      </div>
+      <div class="gb">
+        <div class="gn" title="${esc(f.name)}">${esc(f.name)}</div>
+        <div class="gm">${fsize(f.size)} · ${fdate(f.uploadTime)}</div>
+        <div class="ga">${catChips(f.categories)}${tagChips(f.tags)}</div>
+      </div></div>`;
+  }).join('')+'</div>';
 }
 
 /* ── 檔案詳情抽屜 ─────────────────────────── */
@@ -1685,7 +1963,7 @@ async function geocode(addr){
 }
 
 /* ── AI 助理 ─────────────────────────── */
-function renderAiPage(){
+async function renderAiPage(){
   fillSelect($('aiFolder'),folderOptions(true,'全部檔案'));
   const p=PROVIDER_INFO[state.settings.aiProvider];
   $('aiProviderBadge').innerHTML=p
@@ -1693,7 +1971,34 @@ function renderAiPage(){
     :'<span class="provider-badge">尚未設定</span>';
   $('aiMonthTokens').textContent=((state.aiUsage[state.aiUsage.length-1]?.tokens)||0).toLocaleString();
   updateAiScope();
+  if(!state.chatLoaded) await loadChatHistory();
 }
+
+/* 載入歷史對話(每位使用者各自獨立) */
+async function loadChatHistory(){
+  const box=$('aiMsgs');
+  box.innerHTML='<div class="chat-load">載入歷史對話…</div>';
+  try{
+    const rows=await api('listChats',{limit:100});
+    state.chatLoaded=true;
+    if(!rows.length){ box.innerHTML=AI_HELLO; return; }
+    box.innerHTML='';
+    let lastDay='';
+    rows.forEach(m=>{
+      const d=fdate(m.time);
+      if(d!==lastDay){ lastDay=d;
+        const s=document.createElement('div');s.className='chat-day';s.textContent=d;box.appendChild(s);
+      }
+      if(m.role==='user') pushMsg('user',esc(m.content)+`<div class="mtime">${ftime(m.time)}</div>`);
+      else pushMsg('ai',esc(m.content)+srcHtml(m.sources)+`<div class="mtime">${ftime(m.time)}</div>`);
+    });
+    box.scrollTop=box.scrollHeight;
+  }catch(e){
+    state.chatLoaded=true;
+    box.innerHTML=AI_HELLO;
+  }
+}
+function ftime(iso){const d=new Date(iso);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 function updateAiScope(){
   const fid=$('aiFolder').value;
   const fs=filesInFolder(fid), idx=fs.filter(f=>f.textContent).length;
@@ -1705,23 +2010,52 @@ function pushMsg(role,html){
   $('aiMsgs').appendChild(d);$('aiMsgs').scrollTop=$('aiMsgs').scrollHeight;
   return d;
 }
+/* AI 回答的出處:渲染成可檢視／下載的卡片 */
+function srcHtml(sources){
+  if(!sources||!sources.length)return '';
+  const items=sources.map(sc=>{
+    // 後端可能回字串(舊版)或 {id,name,fileType}(新版);字串則用檔名回查
+    const nm = typeof sc==='string' ? sc : sc.name;
+    const f  = typeof sc==='string'
+      ? state.files.find(x=>x.name===sc)
+      : (state.files.find(x=>x.id===sc.id) || {id:sc.id,name:sc.name,fileType:sc.fileType});
+    if(!f) return `<div class="src-card"><span class="sn" style="cursor:default">${esc(nm)}</span>
+      <span class="sm">已不在清單</span></div>`;
+    const is3d = isIfc(f);
+    return `<div class="src-card">
+      ${iconHtml(f.fileType||extOf(f.name))}
+      <span class="sn" onclick="openDrawer('${f.id}')" title="開啟檔案詳情">${esc(f.name)}</span>
+      <span class="src-acts">
+        <button class="btn sm" onclick="previewFile('${f.id}')">${is3d?'3D檢視':'檢視'}</button>
+        <button class="btn sm" onclick="downloadFile('${f.id}')">下載</button>
+      </span></div>`;
+  }).join('');
+  return `<div class="src-t">參考來源(${sources.length})</div>${items}`;
+}
 async function askAi(){
   const q=$('aiQ').value.trim();if(!q)return;
   $('aiQ').value='';
-  pushMsg('user',esc(q));
+  pushMsg('user',esc(q)+`<div class="mtime">${ftime(new Date().toISOString())}</div>`);
   const thinking=pushMsg('ai','<span class="muted">思考中…</span>');
   $('aiSend').disabled=true;
   try{
     const r=await api('aiChat',{question:q,folderId:$('aiFolder').value});
-    thinking.innerHTML=esc(r.answer)+
-      (r.sources?.length?`<div class="src">出處:${r.sources.map(esc).join('、')}</div>`:'')+
-      `<div class="usage">${esc(r.provider||'')} ${esc(r.model||'')} · 輸入 ${r.usage?.inputTokens??'?'} + 輸出 ${r.usage?.outputTokens??'?'} tokens</div>`;
+    thinking.innerHTML=esc(r.answer)+srcHtml(r.sources)+
+      `<div class="usage">${esc(r.provider||'')} ${esc(r.model||'')} · 輸入 ${r.usage?.inputTokens??'?'} + 輸出 ${r.usage?.outputTokens??'?'} tokens</div>`+
+      `<div class="mtime">${ftime(new Date().toISOString())}</div>`;
     $('aiMonthTokens').textContent=((state.aiUsage[state.aiUsage.length-1]?.tokens)||0).toLocaleString();
   }catch(e){thinking.innerHTML='<span style="color:var(--danger)">AI 回覆失敗:'+esc(e.message)+'</span>'}
   $('aiSend').disabled=false;
 }
-function clearChat(){
-  $('aiMsgs').innerHTML=`<div class="ai-hello" id="aiHello"><div class="big">AI 圖資助理</div>選擇資料夾範圍後直接發問。</div>`;
+const AI_HELLO=`<div class="ai-hello" id="aiHello"><div class="big">AI 圖資助理</div>
+  選擇資料夾範圍後直接發問。對話會自動保存,下次登入可接續。</div>`;
+async function clearChat(){
+  if(!confirm('清除你的所有 AI 對話紀錄?此動作無法復原(僅影響你自己的紀錄)。'))return;
+  try{
+    if(state.live){const n=await api('clearChats',{});toast('已清除 '+n+' 筆對話紀錄')}
+    else toast('已清除對話');
+  }catch(e){toast('清除失敗:'+e.message,1)}
+  $('aiMsgs').innerHTML=AI_HELLO;
 }
 
 /* ── 上傳 ─────────────────────────── */
@@ -2041,7 +2375,7 @@ function refreshViews(){
   if(active==='explorer')renderExplorerAll();
   if(active==='search'&&state.searchResults)doSearch().catch(()=>{});
   if(active==='map')renderMap();
-  if(active==='ai')renderAiPage();
+  if(active==='ai')renderAiPage().catch(()=>{});
   if(active==='admin')renderAdmin();
 }
 async function afterLogin(){
