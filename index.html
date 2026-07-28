@@ -585,7 +585,7 @@ tr.picked:hover{background:var(--ink-100)}
     </div>
     <div class="login-err" id="loginErr"></div>
     <button class="btn primary" onclick="doLogin()">登入</button>
-    <div class="login-foot">v2.7.1 · 圖資倉儲管理系統</div>
+    <div class="login-foot">v2.8.0 · 圖資倉儲管理系統</div>
   </div>
 </div>
 
@@ -627,7 +627,7 @@ tr.picked:hover{background:var(--ink-100)}
   </nav>
   <div class="side-foot">
     <div class="side-user"><span class="avatar" id="userAvatar">管</span><span id="userName">—</span><button onclick="doLogout()">登出</button></div>
-    v2.7.1 · 圖表配色
+    v2.8.0 · 移動資料夾
     <div><span id="modePill" class="mode-pill demo"><span class="dot"></span>示範資料模式</span></div>
   </div>
 </aside>
@@ -732,6 +732,10 @@ tr.picked:hover{background:var(--ink-100)}
             <span class="cnt" id="selCount">已選 0 筆</span>
             <button class="btn sm" onclick="clearPicked()">清除選取</button>
             <div class="spacer"></div>
+            <button class="btn sm" onclick="openMoveModal(true)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              批次移動
+            </button>
             <button class="btn primary sm" id="zipBtn" onclick="downloadPicked()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
               批次下載(ZIP)
@@ -789,6 +793,7 @@ tr.picked:hover{background:var(--ink-100)}
             <span class="cnt" id="selCountS">已選 0 筆</span>
             <button class="btn sm" onclick="clearPicked()">清除選取</button>
             <div class="spacer"></div>
+            <button class="btn sm" onclick="openMoveModal(true)">批次移動</button>
             <button class="btn primary sm" onclick="downloadPicked()">批次下載(ZIP)</button>
           </div>
           <div id="resultsBox"><div class="empty"><div class="t">尚未搜尋</div>輸入關鍵字並按「執行搜尋」,可用空格分隔多組關鍵字並搜尋 PDF 內文。</div></div>
@@ -985,6 +990,7 @@ tr.picked:hover{background:var(--ink-100)}
       下載
     </button>
     <button class="btn" onclick="openEditModal()">編輯資料</button>
+    <button class="btn" onclick="openMoveModal()">移動</button>
     <button class="btn danger" style="margin-left:auto" onclick="deleteCurrent()">刪除</button>
   </div>
 </aside>
@@ -1029,6 +1035,20 @@ tr.picked:hover{background:var(--ink-100)}
   <div class="modal-f">
     <button class="btn" onclick="closeModal('editModal')">取消</button>
     <button class="btn primary" onclick="saveEdit()">儲存</button>
+  </div>
+</div>
+
+<!-- ══════════ 移動資料夾 ══════════ -->
+<div class="modal" id="moveModal">
+  <div class="modal-h"><h3 id="moveTitle">移動到資料夾</h3><button class="x" onclick="closeModal('moveModal')">✕</button></div>
+  <div class="modal-b">
+    <div class="field"><label id="moveHint">選擇目標資料夾</label>
+      <select class="input" id="moveFolder"></select>
+    </div>
+  </div>
+  <div class="modal-f">
+    <button class="btn" onclick="closeModal('moveModal')">取消</button>
+    <button class="btn primary" onclick="doMove()">確定移動</button>
   </div>
 </div>
 
@@ -1711,7 +1731,41 @@ function renderGrid(fs){
   }).join('')+'</div>';
 }
 
-/* ── 檔案詳情抽屜 ─────────────────────────── */
+/* ── 移動資料夾(單檔 / 批次)─────────────────────────── */
+let moveBatch=false;
+function openMoveModal(batch){
+  moveBatch=!!batch;
+  if(batch){
+    const n=state.picked.size;
+    if(!n){toast('請先勾選檔案',1);return}
+    $('moveTitle').textContent='批次移動';
+    $('moveHint').textContent=`將選取的 ${n} 個檔案移動到:`;
+  }else{
+    if(!state.currentFile){return}
+    $('moveTitle').textContent='移動檔案';
+    $('moveHint').textContent=`將「${state.currentFile.name}」移動到:`;
+  }
+  fillSelect($('moveFolder'),folderOptions(false));
+  if(!moveBatch) $('moveFolder').value=state.currentFile.folderId;
+  openModal('moveModal');
+}
+async function doMove(){
+  const folderId=$('moveFolder').value;
+  const ids=moveBatch?[...state.picked]:[state.currentFile.id];
+  if(!ids.length){toast('沒有要移動的檔案',1);return}
+  try{
+    for(const id of ids){
+      await api('updateFile',{id,folderId});
+      const f=state.files.find(x=>x.id===id); if(f)f.folderId=folderId;   // 同步前端
+    }
+    closeModal('moveModal');
+    if(moveBatch){ state.picked.clear(); toast(`已移動 ${ids.length} 個檔案`); }
+    else{ toast('已移動檔案'); openDrawer(state.currentFile.id); }
+    refreshViews();
+  }catch(e){toast('移動失敗:'+e.message,1)}
+}
+
+/* ── 檔案詳情抽屜 ─────────────────────────── *//* ── 檔案詳情抽屜 ─────────────────────────── */
 function openDrawer(id){
   const f=state.files.find(x=>x.id===id);if(!f)return;state.currentFile=f;
   $('dIcon').style.background=TYPE_COLOR[f.fileType]||TYPE_COLOR.other;$('dIcon').textContent=f.fileType.toUpperCase().slice(0,4);
@@ -1774,7 +1828,13 @@ function renderDrawerRels(){
   }).join(''):'<div class="muted" style="font-size:12.5px">尚無關聯檔案</div>';
 }
 function closeDrawer(){$('drawer').classList.remove('show');$('drawerMask').classList.remove('show')}
-async function removeRel(id){await api('deleteRelation',{id});if(!state.live)0;renderDrawerRels();toast('已移除關聯')}
+async function removeRel(id){
+  try{
+    await api('deleteRelation',{id});
+    state.relations=state.relations.filter(r=>r.id!==id);
+    renderDrawerRels();toast('已移除關聯');
+  }catch(e){toast('移除失敗:'+e.message,1)}
+}
 function previewCurrent(){previewFile(state.currentFile.id)}
 function downloadCurrent(){downloadFile(state.currentFile.id)}
 async function deleteCurrent(){
@@ -2203,8 +2263,13 @@ function renderRelPick(){
 }
 async function saveRel(){
   if(!relPickId){toast('請選擇要關聯的檔案',1);return}
-  await api('addRelation',{fileId:state.currentFile.id,relatedFileId:relPickId,relationType:$('relType').value,note:$('relNote').value.trim()});
-  relPickId=null;closeModal('relModal');renderDrawerRels();toast('已建立關聯');
+  try{
+    const r=await api('addRelation',{fileId:state.currentFile.id,relatedFileId:relPickId,relationType:$('relType').value,note:$('relNote').value.trim()});
+    // 同步到前端記憶體,否則正式模式下畫面不會即時更新
+    if(r&&r.id) state.relations.push(r);
+    else state.relations.push({id:'tmp'+Date.now(),fileId:state.currentFile.id,relatedFileId:relPickId,relationType:$('relType').value,note:$('relNote').value.trim()});
+    relPickId=null;closeModal('relModal');renderDrawerRels();toast('已建立關聯');
+  }catch(e){toast('建立關聯失敗:'+e.message,1)}
 }
 
 /* ── 系統管理 ─────────────────────────── */
