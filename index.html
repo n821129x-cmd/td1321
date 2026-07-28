@@ -585,7 +585,7 @@ tr.picked:hover{background:var(--ink-100)}
     </div>
     <div class="login-err" id="loginErr"></div>
     <button class="btn primary" onclick="doLogin()">登入</button>
-    <div class="login-foot">v2.7.0 · 圖資倉儲管理系統</div>
+    <div class="login-foot">v2.7.1 · 圖資倉儲管理系統</div>
   </div>
 </div>
 
@@ -627,7 +627,7 @@ tr.picked:hover{background:var(--ink-100)}
   </nav>
   <div class="side-foot">
     <div class="side-user"><span class="avatar" id="userAvatar">管</span><span id="userName">—</span><button onclick="doLogout()">登出</button></div>
-    v2.7.0 · 亮色主題
+    v2.7.1 · 圖表配色
     <div><span id="modePill" class="mode-pill demo"><span class="dot"></span>示範資料模式</span></div>
   </div>
 </aside>
@@ -1473,6 +1473,19 @@ document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=
 
 /* ── 首頁 ─────────────────────────── */
 let charts={};
+/* 圖表紫色系調色盤(配合亮色主題)*/
+const CHART_PALETTE=['#7A6CF0','#5B8DEF','#0FB8C4','#F0699E','#F5842E','#9B8FF5','#6C5CE7','#3B82F6','#12B886','#F0A020'];
+/* 產生垂直漸層填色(需要 chart area,於 scriptable context 內呼叫)*/
+function vGrad(ctx,c1,c2){
+  const a=ctx.chart.chartArea; if(!a) return c1;
+  const g=ctx.chart.ctx.createLinearGradient(0,a.bottom,0,a.top);
+  g.addColorStop(0,c1); g.addColorStop(1,c2); return g;
+}
+function hGrad(ctx,c1,c2){
+  const a=ctx.chart.chartArea; if(!a) return c1;
+  const g=ctx.chart.ctx.createLinearGradient(a.left,0,a.right,0);
+  g.addColorStop(0,c1); g.addColorStop(1,c2); return g;
+}
 function renderDashboard(){
   const fs=state.files, mNow=new Date(), thisMonth=fs.filter(f=>{const d=new Date(f.uploadTime);return d.getFullYear()===mNow.getFullYear()&&d.getMonth()===mNow.getMonth()}).length;
   const totalSize=fs.reduce((a,f)=>a+(f.size||0),0);
@@ -1486,25 +1499,26 @@ function renderDashboard(){
     ['AI Token(本月)',monthTokens.toLocaleString(),'輸入+輸出合計','M21 12a8 8 0 0 1-8 8H5l-2 2V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z'],
   ].map(s=>`<div class="stat"><div class="k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="${s[3]}"/></svg>${s[0]}</div><div class="v">${s[1]}</div><div class="d">${s[2]}</div></div>`).join('');
 
-  const grid={color:'#E7ECF3'};
+  const grid={color:'#F0EFF8'};
   const byCase={};fs.forEach(f=>{const c=f.customData?.caseNo||'(未填案件)';byCase[c]=(byCase[c]||0)+1});
   const caseArr=Object.entries(byCase).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  drawChart('chCase','bar',{labels:caseArr.map(x=>x[0]),datasets:[{data:caseArr.map(x=>x[1]),backgroundColor:'#1D4E7E',borderRadius:5,maxBarThickness:34}]},
+  drawChart('chCase','bar',{labels:caseArr.map(x=>x[0]),datasets:[{data:caseArr.map(x=>x[1]),
+    backgroundColor:ctx=>vGrad(ctx,'#9B8FF5','#5B4BDB'),borderRadius:8,maxBarThickness:30}]},
     {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid},x:{grid:{display:false}}}});
 
   const byType={};fs.forEach(f=>{byType[f.fileType.toUpperCase()]=(byType[f.fileType.toUpperCase()]||0)+1});
   drawChart('chType','doughnut',{labels:Object.keys(byType),datasets:[{data:Object.values(byType),
-    backgroundColor:Object.keys(byType).map(t=>TYPE_COLOR[t.toLowerCase()]||'#5B6C80'),borderWidth:2,borderColor:'#fff'}]},
-    {plugins:{legend:{position:'right'}},cutout:'62%'});
+    backgroundColor:Object.keys(byType).map((_,i)=>CHART_PALETTE[i%CHART_PALETTE.length]),borderWidth:3,borderColor:'#fff'}]},
+    {plugins:{legend:{position:'right'}},cutout:'66%'});
 
   const byCat={};state.categories.forEach(c=>byCat[c.id]=0);fs.forEach(f=>(f.categories||[]).forEach(c=>{if(c in byCat)byCat[c]++}));
   drawChart('chCat','bar',{labels:state.categories.map(c=>c.name),datasets:[{data:state.categories.map(c=>byCat[c.id]),
-    backgroundColor:state.categories.map(c=>c.color),borderRadius:5,maxBarThickness:34}]},
+    backgroundColor:(state.categories.map((_,i)=>CHART_PALETTE[i%CHART_PALETTE.length])),borderRadius:8,maxBarThickness:30}]},
     {indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0},grid},y:{grid:{display:false}}}});
 
   $('aiUsageHint').textContent='本月 '+monthTokens.toLocaleString()+' tokens';
   drawChart('chAi','bar',{labels:state.aiUsage.map(u=>u.month.slice(5)+'月'),
-    datasets:[{data:state.aiUsage.map(u=>u.tokens),backgroundColor:'#0E7490',borderRadius:5,maxBarThickness:40}]},
+    datasets:[{data:state.aiUsage.map(u=>u.tokens),backgroundColor:ctx=>vGrad(ctx,'#5BC9D4','#6C5CE7'),borderRadius:8,maxBarThickness:36}]},
     {plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid},x:{grid:{display:false}}}});
 
   const recent=[...fs].sort((a,b)=>b.uploadTime.localeCompare(a.uploadTime)).slice(0,8);
@@ -1520,7 +1534,7 @@ function renderDashboard(){
 function drawChart(id,type,data,options){
   if(charts[id])charts[id].destroy();
   charts[id]=new Chart($(id),{type,data,options:{responsive:true,maintainAspectRatio:false,
-    ...options,plugins:{...(options.plugins||{}),tooltip:{backgroundColor:'#0D2B45'}}}});
+    ...options,plugins:{...(options.plugins||{}),tooltip:{backgroundColor:'#5B4BDB',padding:10,cornerRadius:10,titleFont:{weight:'700'}}}}});
 }
 function heroGo(){const kw=$('heroSearch').value.trim();go('search');$('sKw').value=kw;$('sContent').checked=$('heroContent').checked;if(kw)doSearch()}
 function quickSearch(kw){$('heroSearch').value=kw;heroGo()}
